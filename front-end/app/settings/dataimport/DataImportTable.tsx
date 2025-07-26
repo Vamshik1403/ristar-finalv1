@@ -506,6 +506,18 @@ const DataImportTable = () => {
             throw new Error(`Country is required and was not provided.`);
           }
           
+          // Case-insensitive uniqueness check for company name before submission
+          const existingCompaniesResponse = await axios.get("http://localhost:8000/addressbook");
+          const existingCompanies = existingCompaniesResponse.data;
+          
+          const duplicateCompany = existingCompanies.find((company: any) => 
+            company.companyName.toLowerCase() === payload.companyName.toLowerCase()
+          );
+          
+          if (duplicateCompany) {
+            throw new Error(`Company with name "${payload.companyName}" already exists match with "${duplicateCompany.companyName}")`);
+          }
+
           // Submit to API
           await axios.post("http://localhost:8000/addressbook", payload);
           successCount.value++;
@@ -635,6 +647,18 @@ const DataImportTable = () => {
           }
           
           delete payload.parentPortName; // Remove this field even if not used
+          
+          // Case-insensitive uniqueness check for port name before submission
+          const existingPortsResponse = await axios.get("http://localhost:8000/ports");
+          const existingPorts = existingPortsResponse.data;
+          
+          const duplicatePort = existingPorts.find((port: any) => 
+            port.portName.toLowerCase() === payload.portName.toLowerCase()
+          );
+          
+          if (duplicatePort) {
+            throw new Error(`Port with name "${payload.portName}" already exists match with "${duplicatePort.portName}")`);
+          }
           
           // Submit to API
           await axios.post("http://localhost:8000/ports", payload);
@@ -1028,7 +1052,19 @@ const DataImportTable = () => {
             }
           }
 
-          // Step 2: Submit the complete inventory payload
+          // Step 2: Case-insensitive uniqueness check for container number before submission
+          const existingContainersResponse = await axios.get("http://localhost:8000/inventory");
+          const existingContainers = existingContainersResponse.data;
+          
+          const duplicateContainer = existingContainers.find((container: any) => 
+            container.containerNumber.toLowerCase() === inventoryPayload.containerNumber.toLowerCase()
+          );
+          
+          if (duplicateContainer) {
+            throw new Error(`Container with number "${inventoryPayload.containerNumber}" already exists match with "${duplicateContainer.containerNumber}")`);
+          }
+
+          // Step 3: Submit the complete inventory payload
           try {
             const response = await axios.post("http://localhost:8000/inventory", inventoryPayload);
             console.log(`✓ Successfully created container ${row["Container Number"]} (Row ${rowNumber})`);

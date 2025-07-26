@@ -860,6 +860,43 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
       return;
     }
 
+    // Case-insensitive uniqueness check for container number
+    if (!isEditMode) {
+      try {
+        const response = await axios.get("http://localhost:8000/inventory");
+        const existingContainers = response.data;
+        
+        const duplicateContainer = existingContainers.find((container: any) => 
+          container.containerNumber.toLowerCase() === formData.containerNumber.toLowerCase()
+        );
+        
+        if (duplicateContainer) {
+          alert(`Container with number "${formData.containerNumber}" already exists match with "${duplicateContainer.containerNumber}")!`);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check for duplicate containers:", err);
+      }
+    } else {
+      // For edit mode, check if there's another container with same number (case-insensitive) but different ID
+      try {
+        const response = await axios.get("http://localhost:8000/inventory");
+        const existingContainers = response.data;
+        
+        const duplicateContainer = existingContainers.find((container: any) => 
+          container.id !== inventoryId && 
+          container.containerNumber.toLowerCase() === formData.containerNumber.toLowerCase()
+        );
+        
+        if (duplicateContainer) {
+          alert(`Container with number "${formData.containerNumber}" already exists (case-insensitive match with "${duplicateContainer.containerNumber}")!`);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check for duplicate containers:", err);
+      }
+    }
+
     const payload: any = {
       status: formData.status,
       containerNumber: formData.containerNumber,

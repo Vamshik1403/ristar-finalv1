@@ -78,7 +78,7 @@ const AddUserModal = ({ open, onClose }: { open: boolean; onClose: () => void })
                 <SelectTrigger className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700">
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
-                <SelectContent className="bg-neutral-800 text-white border border-neutral-700">
+                <SelectContent className="bg-white dark:bg-neutral-900 text-gray-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700">
                   <SelectItem value="admin">Administrator</SelectItem>
                   <SelectItem value="user">User</SelectItem>
                 </SelectContent>

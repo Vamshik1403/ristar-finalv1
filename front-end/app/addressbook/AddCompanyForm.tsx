@@ -255,6 +255,43 @@ const AddCompanyForm = ({
   };
 
   const handleAddCompanyClick = async () => {
+    // Case-insensitive uniqueness check for company name
+    if (!editData) {
+      try {
+        const response = await axios.get("http://localhost:8000/addressbook");
+        const existingCompanies = response.data;
+        
+        const duplicateCompany = existingCompanies.find((company: any) => 
+          company.companyName.toLowerCase() === formData.companyName.toLowerCase()
+        );
+        
+        if (duplicateCompany) {
+          alert(`Company with name "${formData.companyName}" already exists match with "${duplicateCompany.companyName}")!`);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check for duplicate companies:", err);
+      }
+    } else {
+      // For edit mode, check if there's another company with same name (case-insensitive) but different ID
+      try {
+        const response = await axios.get("http://localhost:8000/addressbook");
+        const existingCompanies = response.data;
+        
+        const duplicateCompany = existingCompanies.find((company: any) => 
+          company.id !== editData.id && 
+          company.companyName.toLowerCase() === formData.companyName.toLowerCase()
+        );
+        
+        if (duplicateCompany) {
+          alert(`Company with name "${formData.companyName}" already exists (case-insensitive match with "${duplicateCompany.companyName}")!`);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check for duplicate companies:", err);
+      }
+    }
+
     const payload = {
       status: statusActive ? "active" : "inactive",
       ...formData,

@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { X } from "lucide-react";
+
 
 interface PortFormProps {
   onClose: () => void;
@@ -124,6 +124,43 @@ const AddPortForm: React.FC<PortFormProps> = ({ onClose, editData, isEditMode })
     if (!formData.countryId || !formData.currencyId || (formData.portType === "ICD" && !formData.parentPortId)) {
       alert("Please fill required fields.");
       return;
+    }
+
+    // Case-insensitive uniqueness check for port name
+    if (!isEditMode) {
+      try {
+        const response = await axios.get("http://localhost:8000/ports");
+        const existingPorts = response.data;
+        
+        const duplicatePort = existingPorts.find((port: any) => 
+          port.portName.toLowerCase() === formData.portName.toLowerCase()
+        );
+        
+        if (duplicatePort) {
+          alert(`Port with name "${formData.portName}" already exists match with "${duplicatePort.portName}")!`);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check for duplicate ports:", err);
+      }
+    } else {
+      // For edit mode, check if there's another port with same name (case-insensitive) but different ID
+      try {
+        const response = await axios.get("http://localhost:8000/ports");
+        const existingPorts = response.data;
+        
+        const duplicatePort = existingPorts.find((port: any) => 
+          port.id !== editData.id && 
+          port.portName.toLowerCase() === formData.portName.toLowerCase()
+        );
+        
+        if (duplicatePort) {
+          alert(`Port with name "${formData.portName}" already exists (case-insensitive match with "${duplicatePort.portName}")!`);
+          return;
+        }
+      } catch (err) {
+        console.error("Failed to check for duplicate ports:", err);
+      }
     }
 
     const portData = {

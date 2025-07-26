@@ -67,7 +67,7 @@ const PermissionForm: React.FC<PermissionFormProps> = ({ activeTab, onClose, onS
                 <SelectTrigger className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700 mb-2">
                   <SelectValue placeholder="Select Module" />
                 </SelectTrigger>
-                <SelectContent className="bg-neutral-800 text-white border border-neutral-700">
+                <SelectContent className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 rounded shadow-lg">
                   <SelectItem value="admin">Roles</SelectItem>
                   <SelectItem value="user">Users</SelectItem>
                 </SelectContent>
