@@ -1656,7 +1656,7 @@ const AddShipmentModal = ({
                   htmlFor="port"
                   className="block text-sm text-gray-900 dark:text-neutral-200 mb-1"
                 >
-                  Port
+                  Tank Collection Port
                 </Label>
                 <Select
                   value={selectedPort}
@@ -1687,7 +1687,7 @@ const AddShipmentModal = ({
                   htmlFor="onHireDepot"
                   className="block text-sm text-gray-900 dark:text-neutral-200 mb-1"
                 >
-                  Tank Collection Port
+                  Location
                 </Label>
                 <Select
                   value={selectedOnHireDepot}
@@ -1695,7 +1695,7 @@ const AddShipmentModal = ({
                   disabled={!selectedPort || onHireDepots.length === 0}
                 >
                   <SelectTrigger className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white border border-neutral-200 dark:border-neutral-700">
-                    <SelectValue placeholder="Select Tank Collection Port" />
+                    <SelectValue placeholder="Select Location" />
                   </SelectTrigger>
                   <SelectContent className="bg-white text-black dark:bg-neutral-800 dark:text-white border border-neutral-200 dark:border-neutral-700">
                     {onHireDepots.map((depot) => (
