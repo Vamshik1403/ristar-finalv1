@@ -3,7 +3,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { FaEdit } from "react-icons/fa";
-import { Filter } from 'lucide-react'; // Add this import if not present
+import { Filter, HistoryIcon } from 'lucide-react'; // Add this import if not present
+import MovementHistoryModal from '../products-inventory/inventory/MovementHistoryModal';
 
 interface MovementRow {
   id: number;
@@ -47,11 +48,18 @@ const MovementHistoryTable = () => {
   const [locationFilter, setLocationFilter] = useState("");
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [tempFilters, setTempFilters] = useState({ status: "", port: "", location: "" });
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [selectedContainerNumber, setSelectedContainerNumber] = useState<string | null>(null);
 
   const openEditDateModal = (row: MovementRow) => {
     setEditingRow(row);
     setEditDate(row.date.slice(0, 10));
     setEditModalOpen(true);
+  };
+
+  const handleViewHistory = (containerNumber: string) => {
+    setSelectedContainerNumber(containerNumber);
+    setShowHistoryModal(true);
   };
 
   useEffect(() => {
@@ -254,6 +262,7 @@ const MovementHistoryTable = () => {
               <th className="p-3">Port</th>
               <th className="p-3">Location</th>
               <th className="p-3">Remarks</th>
+              <th className="p-3">History</th>
               <th className="p-3">Actions</th>
             </tr>
           </thead>
@@ -279,6 +288,15 @@ const MovementHistoryTable = () => {
                     : row.addressBook?.companyName || "-"}
                 </td>
                 <td className="p-2">{row.remarks}</td>
+                <td className="p-2 text-center">
+                  <button
+                    onClick={() => handleViewHistory(row.inventory?.containerNumber || "")}
+                    className="text-blue-400 cursor-pointer hover:text-blue-300"
+                    title="View History"
+                  >
+                    <HistoryIcon size={16} />
+                  </button>
+                </td>
                 <td className="p-2 text-center">
                   <button
                     onClick={() => openEditDateModal(row)}
@@ -462,6 +480,13 @@ const MovementHistoryTable = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {showHistoryModal && selectedContainerNumber && (
+        <MovementHistoryModal
+          containerNumber={selectedContainerNumber}
+          onClose={() => setShowHistoryModal(false)}
+        />
       )}
     </div>
   );

@@ -125,14 +125,30 @@ const ContainerSearchModal = ({
             </Select>
           </div>
           <div>
-            <Label htmlFor="onHireDepot" className="block text-sm text-gray-900 dark:text-neutral-200 mb-1">
-              Location
-            </Label>
-            <Select
-              value={selectedOnHireDepot}
-              onValueChange={(value) => setSelectedOnHireDepot(value)}
-              disabled={!selectedPort || onHireDepots.length === 0}
-            >
+            <div className="flex items-center justify-between mb-1 h-5">
+              <Label htmlFor="onHireDepot" className="block text-sm text-gray-900 dark:text-neutral-200">
+                Location
+              </Label>
+              <div className="h-5 flex items-center -mt-1">
+                {selectedOnHireDepot && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setSelectedOnHireDepot("")}
+                    className="px-2 py-1 text-xs bg-red-600 hover:bg-red-700 text-white border-red-600 cursor-pointer md:h-7"
+                  >
+                    Deselect
+                  </Button>
+                )}
+              </div>
+            </div>
+            <div>
+              <Select
+                value={selectedOnHireDepot}
+                onValueChange={(value) => setSelectedOnHireDepot(value)}
+                disabled={!selectedPort || onHireDepots.length === 0}
+              >
               <SelectTrigger className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white border border-neutral-200 dark:border-neutral-700">
                 <SelectValue placeholder="Select Location" />
               </SelectTrigger>
@@ -144,6 +160,7 @@ const ContainerSearchModal = ({
                 ))}
               </SelectContent>
             </Select>
+            </div>
           </div>
         </div>
 
@@ -242,6 +259,10 @@ const ContainerSearchModal = ({
                 <div className="text-gray-700 dark:text-neutral-300 text-xs">
                   {container.port?.portName || "N/A"} -{" "}
                   {container.depotName || container.addressBook?.companyName || "N/A"}
+                  <div className="mt-1">
+                    Capacity: {container.inventory?.containerCapacity || "N/A"} | 
+                    Unit: {container.inventory?.capacityUnit || "N/A"}
+                  </div>
                 </div>
               </div>
             ))}
@@ -2543,8 +2564,8 @@ const AddShipmentModal = ({
                             {sug.inventory.containerNumber}
                           </div>
                           <div className="text-xs text-black-400 flex justify-between">
-                            <span>
-                              Capacity: {sug.inventory.capacity}{" "}
+                          <span>
+                              Capacity: {sug.inventory.containerCapacity}{" "}
                               {sug.inventory.capacityUnit}
                             </span>
                           </div>

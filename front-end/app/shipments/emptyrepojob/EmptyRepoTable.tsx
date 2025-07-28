@@ -259,7 +259,7 @@ const EmptyRepo = () => {
         )}
       </div>
 
-      <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-hidden shadow-sm">
+              <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-x-auto shadow-sm">
         <Table>
           <TableHeader className="bg-white dark:bg-neutral-900">
             <TableRow>

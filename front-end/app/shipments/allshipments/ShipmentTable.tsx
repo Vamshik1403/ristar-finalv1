@@ -380,7 +380,7 @@ const AllShipmentsPage = () => {
         )}
       </div>
 
-      <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black overflow-hidden shadow-sm">
+              <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black overflow-x-auto shadow-sm">
         <Table>
           <TableHeader className="bg-neutral-100 dark:bg-neutral-900">
             <TableRow className="hover:bg-neutral-200/60 dark:hover:bg-neutral-800/60 border-neutral-200 dark:border-neutral-800">

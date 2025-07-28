@@ -12,6 +12,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { FiSearch } from "react-icons/fi";
 
@@ -22,7 +29,7 @@ const AddCompanyForm = ({
   onClose: () => void;
   editData?: any;
 }) => {
-  const [statusActive, setStatusActive] = useState(true);
+  const [status, setStatus] = useState("active");
   const [showBankAccounts, setShowBankAccounts] = useState(false);
   const [bankAccounts, setBankAccounts] = useState<any[]>([]);
   const [showPortsOfBusiness, setShowPortsOfBusiness] = useState(false);
@@ -162,7 +169,7 @@ const AddCompanyForm = ({
         countryId: editData.countryId || 0,
       });
 
-      setStatusActive(editData.status === "active");
+      setStatus(editData.status || "active");
       // Always set as array, regardless of input type
       setBusinessTypes(
         Array.isArray(editData.businessType)
@@ -293,7 +300,7 @@ const AddCompanyForm = ({
     }
 
     const payload = {
-      status: statusActive ? "active" : "inactive",
+      status: status,
       ...formData,
       creditLimit: String(formData.creditLimit),
       businessType: businessTypes.join(", "),
@@ -405,20 +412,24 @@ const AddCompanyForm = ({
             }}
           >
             <div className="px-6 py-6 grid grid-cols-1 md:grid-cols-2 gap-6 bg-white dark:bg-neutral-900">
-              {/* Status Switch */}
-              <div className="col-span-2 flex items-center">
-                <span className="text-black dark:text-neutral-200 mr-2">Status</span>
-                <Button
-                  type="button"
-                  variant={statusActive ? "default" : "outline"}
-                  className={cn(
-                    "rounded-full px-6 py-1 transition-colors cursor-pointer",
-                    statusActive ? "bg-blue-600 text-white" : "bg-white dark:bg-neutral-800 text-neutral-300 border border-neutral-200 dark:border-neutral-700"
-                  )}
-                  onClick={() => setStatusActive(!statusActive)}
-                >
-                  {statusActive ? "Active" : "Inactive"}
-                </Button>
+              {/* Status Dropdown */}
+              <div className="col-span-2">
+                <label htmlFor="status" className="block text-sm font-medium text-black dark:text-neutral-200 mb-1">
+                  Status <span className="text-red-500">*</span>
+                </label>
+                <Select value={status} onValueChange={(value) => setStatus(value)}>
+                  <SelectTrigger className="w-full bg-white dark:bg-neutral-800 text-black dark:text-white border border-neutral-200 dark:border-neutral-700">
+                    <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white text-black dark:bg-neutral-800 dark:text-white border border-neutral-200 dark:border-neutral-700">
+                    <SelectItem value="active" className="text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer">
+                      Active
+                    </SelectItem>
+                    <SelectItem value="inactive" className="text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-600 cursor-pointer">
+                      Inactive
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               {/* Main Fields */}
               {[

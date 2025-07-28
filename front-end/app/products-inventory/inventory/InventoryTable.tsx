@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { History, HistoryIcon, Pencil, Search, Trash2, Filter, X } from "lucide-react";
+import { Pencil, Search, Trash2, Filter, X } from "lucide-react";
 import AddContainerForm from '../inventory/CreateInventoryForm';
 import axios from 'axios';
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import MovementHistoryModal from './MovementHistoryModal';
 
 const StatusBadge = ({ status }: { status: string }) => (
   <span
@@ -47,8 +46,6 @@ const ProductsInventoryPage = () => {
   const [inventoryData, setInventoryData] = useState<any[]>([]);
   const [selectedInventoryId, setSelectedInventoryId] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [showHistoryModal, setShowHistoryModal] = useState(false);
-  const [selectedContainerNumber, setSelectedContainerNumber] = useState<string | null>(null);
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [filters, setFilters] = useState({
     ownership: "",
@@ -105,10 +102,7 @@ const ProductsInventoryPage = () => {
       .catch((err) => console.error("Failed to fetch address book", err));
   }, []);
 
-  const handleViewHistory = (containerNumber: string) => {
-    setSelectedContainerNumber(containerNumber);
-    setShowHistoryModal(true);
-  };
+
 
   const getCompanyName = (addressbookId: any) => {
     const entry = addressBook.find((ab) => ab.id === addressbookId);
@@ -248,7 +242,7 @@ const ProductsInventoryPage = () => {
         </div>
       )}
 
-      <div className="rounded-lg border border-neutral-800 overflow-hidden">
+      <div className="rounded-lg border border-neutral-800 overflow-x-auto">
         <Table>
           <TableHeader className="bg-white dark:bg-neutral-900">
             <TableRow>
@@ -335,13 +329,6 @@ const ProductsInventoryPage = () => {
                       >
                         <Trash2 size={16} />
                       </Button>
-                      <Button
-                        title="View History"
-                        className="bg-white dark:bg-neutral-900 text-black dark:text-white rounded-full h-8 w-8 flex items-center justify-center p-0 hover:bg-neutral-100 dark:hover:bg-neutral-800 hover:scale-105 transition-transform border border-neutral-200 dark:border-neutral-800 cursor-pointer"
-                        onClick={() => handleViewHistory(item.containerNumber)}
-                      >
-                        <HistoryIcon size={20} />
-                      </Button>
                     </div>
                   </TableCell>
                 </TableRow>
@@ -381,13 +368,7 @@ const ProductsInventoryPage = () => {
         </DialogContent>
       </Dialog>
 
-      {showHistoryModal && selectedContainerNumber && (
-        <MovementHistoryModal
-          containerNumber={selectedContainerNumber}
-          onClose={() => setShowHistoryModal(false)}
-          
-        />
-      )}
+
 
       {/* Filter Modal */}
       {showFilterModal && (

@@ -1560,7 +1560,7 @@ const DataImportTable = () => {
       <div className="w-full max-w-3xl">
         {/* Tabs at the top */}
         <div className="mb-4">
-          <div className="inline-flex bg-white dark:bg-neutral-800 rounded-lg shadow border border-neutral-200 dark:border-neutral-700 overflow-hidden">
+          <div className="inline-flex bg-white dark:bg-neutral-800 rounded-lg shadow border border-neutral-200 dark:border-neutral-700 overflow-x-auto">
             <button
               className={`px-6 py-2 text-base font-medium focus:outline-none transition-colors ${selectedCategory === "companies" ? "bg-neutral-200 dark:bg-neutral-700 text-black dark:text-white" : "bg-white dark:bg-neutral-800 text-black dark:text-gray-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 cursor-pointer"}`}
               onClick={() => setSelectedCategory("companies")}
