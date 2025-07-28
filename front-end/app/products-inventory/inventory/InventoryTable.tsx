@@ -284,9 +284,9 @@ const ProductsInventoryPage = () => {
                   <TableCell className="bg-background text-foreground">
                     {/* First check if there are leasing records with ownershipType */}
                     {item.leasingInfo?.length > 0 && item.leasingInfo[0].ownershipType
-                      ? item.leasingInfo[0].ownershipType
+                      ? (item.leasingInfo[0].ownershipType === "Leased" ? "Lease" : item.leasingInfo[0].ownershipType)
                       : /* If no leasing records or no ownershipType in leasing record, use the top-level ownershipType */
-                      (item.ownershipType ||
+                      (item.ownershipType === "Leased" ? "Lease" : item.ownershipType ||
                         /* If there are leasing records but no ownershipType, default to "Lease" */
                         (item.leasingInfo?.length > 0 ? "Lease" : "Own"))}
                   </TableCell>
@@ -322,7 +322,7 @@ const ProductsInventoryPage = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer"
+                        className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer dark:hover:bg-blue-900/40"
                         onClick={() => handleEditClick(item.id)}
                       >
                         <Pencil size={16} />
@@ -330,7 +330,7 @@ const ProductsInventoryPage = () => {
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer"
+                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer dark:hover:bg-red-900/40"
                         onClick={() => handleDelete(item.id)}
                       >
                         <Trash2 size={16} />
@@ -418,7 +418,7 @@ const ProductsInventoryPage = () => {
                 >
                   <option value="">All Ownership Types</option>
                   <option value="Own">Own</option>
-                  <option value="Leased">Leased</option>
+                                              <option value="Leased">Lease</option>
                 </select>
               </div>
               

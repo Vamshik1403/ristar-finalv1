@@ -310,7 +310,7 @@ const AddressBook = () => {
                       size="icon"
                       onClick={() => handleEditClick(company.id)}
                       className={cn(
-                        "h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer"
+                        "h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer dark:hover:bg-blue-900/40"
                       )}
                       title="Edit"
                     >
@@ -321,7 +321,7 @@ const AddressBook = () => {
                       size="icon"
                       onClick={() => handleDelete(company.id)}
                       className={cn(
-                        "h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer"
+                        "h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer dark:hover:bg-red-900/40"
                       )}
                       title="Delete"
                     >

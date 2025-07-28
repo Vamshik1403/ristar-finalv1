@@ -130,7 +130,7 @@ const DepotCleaningTable = () => {
                       variant="ghost"
                       size="icon"
                       title="Edit"
-                      className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer"
+                      className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer dark:hover:bg-blue-900/40"
                       onClick={() => {
                         setForm({
                           id: tariff.id,
@@ -151,7 +151,7 @@ const DepotCleaningTable = () => {
                       variant="ghost"
                       size="icon"
                       title="Delete"
-                      className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer"
+                      className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer dark:hover:bg-red-900/40"
                       onClick={() => {
                         if (confirm("Are you sure you want to delete this tariff?")) {
                           axios

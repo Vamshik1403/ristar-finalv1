@@ -72,6 +72,74 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
   editData,
   isEditMode,
 }) => {
+  // Timezone-safe date processing functions (same as data import)
+  const parseFlexibleDate = (dateStr: string): Date | null => {
+    if (!dateStr || dateStr.trim() === "") return null;
+    
+    const trimmed = dateStr.trim();
+    
+    // Try manual parsing for DD-MM-YYYY format (most common)
+    const ddmmyyyy = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (ddmmyyyy) {
+      const day = parseInt(ddmmyyyy[1]);
+      const month = parseInt(ddmmyyyy[2]);
+      const year = parseInt(ddmmyyyy[3]);
+      
+      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // Set to noon to avoid timezone issues
+      if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+        return date;
+      }
+    }
+    
+    // Try manual parsing for YYYY-MM-DD format
+    const yyyymmdd = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (yyyymmdd) {
+      const year = parseInt(yyyymmdd[1]);
+      const month = parseInt(yyyymmdd[2]);
+      const day = parseInt(yyyymmdd[3]);
+      
+      const date = new Date(year, month - 1, day, 12, 0, 0, 0);
+      if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+        return date;
+      }
+    }
+    
+    // Try ISO date as last resort
+    try {
+      const isoDate = new Date(trimmed);
+      if (!isNaN(isoDate.getTime()) && isoDate.getFullYear() > 1900) {
+        const localDate = new Date(isoDate.getFullYear(), isoDate.getMonth(), isoDate.getDate(), 12, 0, 0, 0);
+        return localDate;
+      }
+    } catch (e) {
+      // Ignore ISO parsing errors
+    }
+    
+    return null;
+  };
+
+  // Create timezone-safe ISO string for storage
+  const createLocalDateISO = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) return "";
+    
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    
+    return `${year}-${month}-${day}T12:00:00.000Z`;
+  };
+
+  // Create date string for form inputs (YYYY-MM-DD format)
+  const createDateInputString = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) return "";
+    
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  };
+
   const [formData, setFormData] = useState({
     status: "Active",
     containerNumber: "",
@@ -148,7 +216,7 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
         ...prev,
         ...tempEditData,
         initialSurveyDate: tempEditData.InitialSurveyDate
-          ? new Date(tempEditData.InitialSurveyDate).toISOString().split('T')[0]
+          ? createDateInputString(new Date(tempEditData.InitialSurveyDate))
           : "",
         // Set ownership with correct mapping
         ownership: displayOwnership
@@ -272,11 +340,11 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
           leasorName: record.addressBook?.companyName || "",
           depotId: record.onHireDepotaddressbookId || "",
           portId: record.portId || "",
-          onHireDate: record.onHireDate ? new Date(record.onHireDate).toISOString().split('T')[0] : "",
+          onHireDate: record.onHireDate ? createDateInputString(new Date(record.onHireDate)) : "",
           onHireLocation: record.port?.portName || "",
           onHireDepotaddressbookId: record.onHireDepotaddressbookId || "",
           onHireDepotName: record.onHireDepotAddressBook?.companyName || "",
-          offHireDate: record.offHireDate ? new Date(record.offHireDate).toISOString().split('T')[0] : "",
+          offHireDate: record.offHireDate ? createDateInputString(new Date(record.offHireDate)) : "",
           leaseRentPerDay: record.leaseRentPerDay || "",
           remarks: record.remarks || "",
           isNew: false,
@@ -758,8 +826,8 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
           leasoraddressbookId: numericLeasorId,
           onHireDepotaddressbookId: numericDepotId,
           portId: numericPortId,
-          onHireDate: record.onHireDate || new Date().toISOString().split('T')[0],
-          offHireDate: record.offHireDate || null,
+          onHireDate: record.onHireDate ? createLocalDateISO(parseFlexibleDate(record.onHireDate) || new Date()) : createLocalDateISO(new Date()),
+          offHireDate: record.offHireDate ? createLocalDateISO(parseFlexibleDate(record.offHireDate) || new Date()) : null,
           leaseRentPerDay: record.leaseRentPerDay || "",
           remarks: record.remarks || "",
           inventoryId: inventoryId
@@ -954,8 +1022,8 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
           leasoraddressbookId: parseInt(record.leasoraddressbookId),
           onHireDepotaddressbookId: parseInt(record.onHireDepotaddressbookId),
           portId: selectedPort.id,
-          onHireDate: new Date(record.onHireDate).toISOString(),
-          offHireDate: record.offHireDate ? new Date(record.offHireDate).toISOString() : null,
+          onHireDate: record.onHireDate ? createLocalDateISO(parseFlexibleDate(record.onHireDate) || new Date()) : createLocalDateISO(new Date()),
+          offHireDate: record.offHireDate ? createLocalDateISO(parseFlexibleDate(record.offHireDate) || new Date()) : null,
           leaseRentPerDay: record.leaseRentPerDay || "0",
           remarks: record.remarks || "",
         });
@@ -998,8 +1066,14 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
         const response = await axios.patch(`http://localhost:8000/inventory/${inventoryId}`, payload);
         createdInventoryId = response.data.id || inventoryId;
 
-        const originalOwnership = editData.leasingInfo?.[0]?.ownershipType || "Leased";
-        const currentOwnership = formData.ownership === "Lease" ? "Leased" : "Own";
+        // Fix ownership type mapping - ensure consistent comparison
+        const originalOwnership = editData.leasingInfo?.[0]?.ownershipType || "";
+        // Map frontend "Lease" to backend "Leased" for comparison
+        const currentOwnership = formData.ownership === "Lease" ? "Leased" : 
+                                formData.ownership === "Own" ? "Own" : 
+                                formData.ownership; // Keep original if it's already "Leased"
+        
+        console.log("Ownership comparison:", { originalOwnership, currentOwnership, formOwnership: formData.ownership });
 
         // Ownership changed
         if (originalOwnership !== currentOwnership) {
@@ -1018,7 +1092,7 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
             leasoraddressbookId: (selectedHireDepotId),
             onHireDepotaddressbookId: (selectedHireDepotId),
             portId: selectedPort.id,
-            onHireDate: new Date().toISOString(),
+            onHireDate: createLocalDateISO(new Date()),
             offHireDate: null,
             leaseRentPerDay: "",
             remarks: "",

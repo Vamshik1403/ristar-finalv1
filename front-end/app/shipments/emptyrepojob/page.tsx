@@ -1,5 +1,5 @@
 import React from 'react';
-import SidebarWithHeader from '@/app/components/Sidebar';
+import SidebarWithHeader from '../../components/Sidebar';
 import EmptyRepo from './EmptyRepoTable';
 
 export default function Customers() {

@@ -1653,7 +1653,7 @@ const AddShipmentModal = ({
                                 }));
                                 toggleSuggestions("quotation", false);
                               }}
-                              className="px-3 py-2 cursor-pointer text-black dark:text-white hover:bg-neutral-100 dark:hover:bg-neutral-800"
+                              className="px-3 py-2 cursor-pointer text-black dark:text-white hover:bg-neutral-200 dark:hover:bg-neutral-500"
                             >
                               <div className="font-medium">{quotation.quotationRefNumber || quotation.quotationRefNo || "No Ref"}</div>
                               <div className="text-xs text-black-400">

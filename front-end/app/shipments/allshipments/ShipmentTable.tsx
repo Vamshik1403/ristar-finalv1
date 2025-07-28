@@ -437,7 +437,7 @@ const AllShipmentsPage = () => {
                         title="Edit"
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer"
+                        className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer dark:hover:bg-blue-900/40"
                       >
                         <Pencil size={16} />
                       </Button>
@@ -446,14 +446,14 @@ const AllShipmentsPage = () => {
                         title="Delete"
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer"
+                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer dark:hover:bg-red-900/40"
                       >
                         <Trash2 size={16} />
                       </Button>
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-900/40 cursor-pointer"
+                        className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-900/40 cursor-pointer dark:hover:bg-green-900/40"
                         title="Download PDF"
                         onClick={() => handleDownloadPDF(shipment.id, shipment.containers ?? [])}
                       >

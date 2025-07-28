@@ -1,6 +1,6 @@
 "use client";
 
-import SidebarWithHeader from '@/app/components/Sidebar';
+import SidebarWithHeader from '../components/Sidebar';
 import QuotationClientWrapper from './QuotationClientWrapper';
 
 

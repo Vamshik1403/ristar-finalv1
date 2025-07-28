@@ -26,6 +26,7 @@ const companyCSVHeaders = [
   "Credit Limit",
   "remarks",
   "Country",
+  "Ports of Business",
   "Status"
 ];
 
@@ -40,7 +41,7 @@ const portCSVHeaders = [
   "Parent Port"
 ];
 
-// Update the containerCSVHeaders array to match your Excel headers
+// Container CSV headers - arranged according to form layout and fixed naming
 const containerCSVHeaders = [
   "ID",
   "Container Number",
@@ -49,24 +50,24 @@ const containerCSVHeaders = [
   "Container Size",
   "Container Class",
   "Capacity",
+  "Container Unit", // Moved after Capacity to match form arrangement
   "Manufacturer",
   "Build Year",
   "Gross Wt",
   "Tare Wt",
+  "Initial Survey Date", // Added missing field that appears in form after Tare Wt
   "Ownership",
-  "LEASE REF",
-  "LEASE RENTAL",
-  "OWNERSHIP",
+  "Lease Ref No", // Renamed from "LEASE REF"
+  "Leasor Name", // Moved next to Lease Ref No
   "On-Hire Date",
   "Onhire Location",
   "On Hire DEPOT",
-  "OWNER",
   "Off-Hire Date",
   "Lease Rent Per Day",
   "remarks",
-  "Last Inspection Date", // Changed from "Inspection Date" to match Excel
+  "Last Inspection Date",
   "Inspection Type",
-  "Next Inspection Due", // Changed from "Next Due Date" to match Excel
+  "Next Inspection Due Date", // Renamed from "Next Inspection Due"
   "Certificate",
   "Report Date",
   "Report Document"
@@ -217,6 +218,7 @@ const DataImportTable = () => {
       "Credit Limit": "creditLimit",
       "remarks": "remarks",
       "Country": "countryName", // This will be mapped to countryId later
+      "Ports of Business": "portsOfBusiness", // This will be mapped to businessPorts later
       "Status": "status"
     };
     
@@ -297,25 +299,28 @@ const DataImportTable = () => {
       "Container Size": "containerSize",
       "Container Class": "containerClass",
       "Capacity": "containerCapacity",
+      "Container Unit": "capacityUnit", // Container Unit mapping
       "Manufacturer": "manufacturer",
       "Build Year": "buildYear",
-      "Gross Wt": "grossWt", // Match Excel header
-      "Tare Wt": "tareWt", // Match Excel header
+      "Gross Wt": "grossWt",
+      "Tare Wt": "tareWt",
+      "Initial Survey Date": "initialSurveyDate", // Added missing Initial Survey Date mapping
       "Gross Weight": "grossWt", // Keep for backward compatibility
       "Tare Weight": "tareWt", // Keep for backward compatibility
       "Ownership": "ownership",
-      "LEASE REF": "leasingRefNo",
-      "LEASE RENTAL": "leaseRentPerDay",
-      "OWNERSHIP": "ownership",
+      "Lease Ref No": "leasingRefNo", // Updated from "LEASE REF"
+      "LEASE REF": "leasingRefNo", // Keep for backward compatibility
+      "Leasor Name": "leasorName",
       "On-Hire Date": "onHireDate",
       "Onhire Location": "onHireLocation",
       "On Hire DEPOT": "onHireDepotId",
       "Off-Hire Date": "offHireDate",
       "Lease Rent Per Day": "leaseRentPerDay",
       "remarks": "remarks",
-      "Last Inspection Date": "inspectionDate", // Map "Last Inspection Date" to "inspectionDate"
+      "Last Inspection Date": "inspectionDate",
       "Inspection Type": "inspectionType",
-      "Next Inspection Due": "nextDueDate", // Map "Next Inspection Due" to "nextDueDate"
+      "Next Inspection Due Date": "nextDueDate", // Updated from "Next Inspection Due"
+      "Next Inspection Due": "nextDueDate", // Keep for backward compatibility
       "Certificate": "certificate",
       "Report Date": "reportDate",
       "Report Document": "reportDocument"
@@ -326,8 +331,25 @@ const DataImportTable = () => {
 
   // Validate a single row of container CSV data
   const validateContainerRow = (row: Record<string, string>): string | null => {
-    // Required fields for container import based on Excel template headers
-    const requiredFields = ["Container Number", "Container Category", "Container Type", "Container Class", "Ownership"];
+    // MANDATORY fields for container import - all fields except periodic certificates and onhire reports
+    const requiredFields = [
+      "Container Number",
+      "Container Category", 
+      "Container Type",
+      "Container Size",
+      "Container Class",
+      "Capacity",
+      "Container Unit",   // Required Container Unit field
+      "Manufacturer",
+      "Build Year",
+      "Gross Wt",
+      "Tare Wt",
+      "Initial Survey Date", // Added missing Initial Survey Date as required
+      "Ownership",
+      "On-Hire Date",
+      "Onhire Location", // Port (ID or Name)
+      "On Hire DEPOT"    // Depot (ID or Name)
+    ];
     
     for (const field of requiredFields) {
       if (!row[field] || row[field].trim() === "") {
@@ -347,19 +369,93 @@ const DataImportTable = () => {
       return `Invalid Container Category: ${category}. Must be "Tank", "Dry", or "Refrigerated"`;
     }
     
-    // Validate ownership type - REQUIRED field
-    const ownership = row["Ownership"]?.trim().toUpperCase();
+    // Validate container size
+    const size = row["Container Size"].trim();
+    if (!size) {
+      return `Container Size is required`;
+    }
+    
+    // Validate capacity
+    const capacity = row["Capacity"].trim();
+    if (!capacity || isNaN(Number(capacity))) {
+      return `Invalid Capacity: ${capacity}. Must be a valid number`;
+    }
+    
+    // Validate weights
+    const grossWt = row["Gross Wt"].trim();
+    const tareWt = row["Tare Wt"].trim();
+    
+    if (grossWt && isNaN(Number(grossWt))) {
+      return `Invalid Gross Weight: ${grossWt}. Must be a valid number`;
+    }
+    
+    if (tareWt && isNaN(Number(tareWt))) {
+      return `Invalid Tare Weight: ${tareWt}. Must be a valid number`;
+    }
+    
+    // Validate build year
+    const buildYear = row["Build Year"].trim();
+    if (buildYear && (isNaN(Number(buildYear)) || Number(buildYear) < 1900 || Number(buildYear) > new Date().getFullYear() + 1)) {
+      return `Invalid Build Year: ${buildYear}. Must be a valid year between 1900 and ${new Date().getFullYear() + 1}`;
+    }
+    
+    // Validate ownership type - REQUIRED field (only "Own" or "Lease" allowed)
+    const ownership = row["Ownership"]?.trim();
     if (!ownership) {
       return `Ownership is required for container ${containerNumber}`;
     }
-    if (ownership !== "OWN" && ownership !== "OWNED" && ownership !== "LEASED" && ownership !== "LEASE") {
-      return `Invalid Ownership: ${row["Ownership"]}. Must be either "OWN", "OWNED", "LEASED", or "LEASE" (case insensitive)`;
+    const ownershipUpper = ownership.toUpperCase();
+    if (ownershipUpper !== "OWN" && ownershipUpper !== "LEASE") {
+      return `Invalid Ownership: ${ownership}. Must be either "Own" or "Lease" (case insensitive)`;
     }
     
-    // Additional validation for LEASED containers
-    if (ownership === "LEASED" || ownership === "LEASE") {
-      if (!row["OWNER"] || row["OWNER"].trim() === "") {
-        return `OWNER field is required for LEASED container ${containerNumber}`;
+    // Additional validation for LEASE containers - Leasor Name field is MANDATORY
+    if (ownershipUpper === "LEASE") {
+      if (!row["Leasor Name"] || row["Leasor Name"].trim() === "") {
+        return `Leasor Name field is required for Lease container ${containerNumber}`;
+      }
+    }
+    
+    // Validate date formats using enhanced timezone-safe date parser
+    if (row["On-Hire Date"] && row["On-Hire Date"].trim() !== "") {
+      const onHireDate = parseFlexibleDate(row["On-Hire Date"]);
+      if (!onHireDate) {
+        return `Invalid On-Hire Date format: "${row["On-Hire Date"]}". Preferred format: DD-MM-YYYY (e.g., 25-12-2023). Also accepts: YYYY-MM-DD, DD/MM/YYYY`;
+      }
+    }
+    
+    if (row["Initial Survey Date"] && row["Initial Survey Date"].trim() !== "") {
+      const initialSurveyDate = parseFlexibleDate(row["Initial Survey Date"]);
+      if (!initialSurveyDate) {
+        return `Invalid Initial Survey Date format: "${row["Initial Survey Date"]}". Preferred format: DD-MM-YYYY (e.g., 25-12-2023). Also accepts: YYYY-MM-DD, DD/MM/YYYY`;
+      }
+    }
+    
+    if (row["Off-Hire Date"] && row["Off-Hire Date"].trim() !== "") {
+      const offHireDate = parseFlexibleDate(row["Off-Hire Date"]);
+      if (!offHireDate) {
+        return `Invalid Off-Hire Date format: "${row["Off-Hire Date"]}". Preferred format: DD-MM-YYYY (e.g., 25-12-2023). Also accepts: YYYY-MM-DD, DD/MM/YYYY`;
+      }
+    }
+    
+    if (row["Last Inspection Date"] && row["Last Inspection Date"].trim() !== "") {
+      const lastInspectionDate = parseFlexibleDate(row["Last Inspection Date"]);
+      if (!lastInspectionDate) {
+        return `Invalid Last Inspection Date format: "${row["Last Inspection Date"]}". Preferred format: DD-MM-YYYY (e.g., 25-12-2023). Also accepts: YYYY-MM-DD, DD/MM/YYYY`;
+      }
+    }
+    
+    if (row["Next Inspection Due Date"] && row["Next Inspection Due Date"].trim() !== "") {
+      const nextInspectionDate = parseFlexibleDate(row["Next Inspection Due Date"]);
+      if (!nextInspectionDate) {
+        return `Invalid Next Inspection Due Date format: "${row["Next Inspection Due Date"]}". Preferred format: DD-MM-YYYY (e.g., 25-12-2023). Also accepts: YYYY-MM-DD, DD/MM/YYYY`;
+      }
+    }
+    
+    if (row["Report Date"] && row["Report Date"].trim() !== "") {
+      const reportDate = parseFlexibleDate(row["Report Date"]);
+      if (!reportDate) {
+        return `Invalid Report Date format: "${row["Report Date"]}". Preferred format: DD-MM-YYYY (e.g., 25-12-2023). Also accepts: YYYY-MM-DD, DD/MM/YYYY`;
       }
     }
     
@@ -427,6 +523,29 @@ const DataImportTable = () => {
       return;
     }
     
+    // Pre-validate ALL rows to catch all errors upfront
+    console.log(`Pre-validating ${data.length} companies to catch all errors...`);
+    const validationErrors: string[] = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowNumber = i + 2; // +2 because Excel starts at row 1 and has headers
+      
+      // Validate the row structure and data
+      const validationError = validateCompanyRow(row);
+      if (validationError) {
+        validationErrors.push(`Row ${rowNumber} (${row["Company Name"] || "Unknown"}): ${validationError}`);
+      }
+    }
+    
+    // If there are validation errors, show them all and stop
+    if (validationErrors.length > 0) {
+      setImportStatus("error");
+      setErrorMessages(validationErrors);
+      setImportStats({ success: 0, failed: validationErrors.length });
+      return;
+    }
+    
     const successCount = { value: 0 };
     const failedCount = { value: 0 };
     const errors: string[] = [];
@@ -435,6 +554,10 @@ const DataImportTable = () => {
       // Fetch all countries to map country names to IDs
       const countriesResponse = await axios.get("http://localhost:8000/country");
       const countries = countriesResponse.data;
+      
+      // Fetch all ports to map port names to IDs
+      const portsResponse = await axios.get("http://localhost:8000/ports");
+      const ports = portsResponse.data;
       
       // Process each row
       for (let i = 0; i < data.length; i++) {
@@ -454,6 +577,20 @@ const DataImportTable = () => {
             contacts: []
           };
           
+          // Define predefined business types (exact case as in form)
+          const predefinedBusinessTypes = [
+            "Customer",
+            "Handling Agent", 
+            "Shipper",
+            "Land Transport",
+            "Carrier",
+            "Deport Terminal",
+            "Consignee",
+            "Surveyor", 
+            "Leasor",
+            "CY Terminal"
+          ];
+
           // Map each CSV field to its API equivalent
           Object.keys(row).forEach(header => {
             if (row[header] && row[header].trim() !== "") {
@@ -461,13 +598,35 @@ const DataImportTable = () => {
               if (field !== header) { // if we have a mapping
                 // Special handling for businessType
                 if (field === "businessType") {
-                  // Split on comma, trim each, and join with ', '
-                  const normalized = row[header]
+                  // Split on comma, trim each, and match case-insensitively
+                  const csvBusinessTypes = row[header]
                     .split(/\s*,\s*/)
                     .map((s: string) => s.trim())
-                    .filter(Boolean)
-                    .join(", ");
-                  payload[field] = normalized;
+                    .filter(Boolean);
+                  
+                  const matchedTypes: string[] = [];
+                  const unmatchedTypes: string[] = [];
+                  
+                  csvBusinessTypes.forEach(csvType => {
+                    // Find matching predefined type (case-insensitive)
+                    const matchedType = predefinedBusinessTypes.find(
+                      predefinedType => predefinedType.toLowerCase() === csvType.toLowerCase()
+                    );
+                    
+                    if (matchedType) {
+                      matchedTypes.push(matchedType);
+                    } else {
+                      unmatchedTypes.push(csvType);
+                    }
+                  });
+                  
+                  // If there are unmatched types, throw an error
+                  if (unmatchedTypes.length > 0) {
+                    throw new Error(`Invalid business types: ${unmatchedTypes.join(", ")}. Valid options are: ${predefinedBusinessTypes.join(", ")}`);
+                  }
+                  
+                  // Join matched types with proper case
+                  payload[field] = matchedTypes.join(", ");
                 } else {
                   payload[field] = row[header].trim();
                 }
@@ -506,6 +665,38 @@ const DataImportTable = () => {
             throw new Error(`Country is required and was not provided.`);
           }
           
+          // Map ports of business to port IDs
+          if (payload.portsOfBusiness) {
+            // Split on comma, trim each, and filter out empty strings
+            const portNames = payload.portsOfBusiness
+              .split(/\s*,\s*/)
+              .map((s: string) => s.trim())
+              .filter(Boolean);
+            
+            const businessPorts: any[] = [];
+            const notFoundPorts: string[] = [];
+            
+            for (const portName of portNames) {
+              // Case-insensitive search for port by name
+              const port = ports.find(
+                (p: any) => p.portName.toLowerCase().trim() === portName.toLowerCase().trim()
+              );
+              
+              if (port) {
+                businessPorts.push({ portId: port.id });
+              } else {
+                notFoundPorts.push(portName);
+              }
+            }
+            
+            if (notFoundPorts.length > 0) {
+              throw new Error(`Ports not found: ${notFoundPorts.join(", ")}. Please check the port names match exactly with ports in the system.`);
+            }
+            
+            payload.businessPorts = businessPorts;
+            delete payload.portsOfBusiness;
+          }
+          
           // Case-insensitive uniqueness check for company name before submission
           const existingCompaniesResponse = await axios.get("http://localhost:8000/addressbook");
           const existingCompanies = existingCompaniesResponse.data;
@@ -523,8 +714,13 @@ const DataImportTable = () => {
           successCount.value++;
         } catch (error: any) {
           failedCount.value++;
-          const errorMessage = error.response?.data?.message || error.message;
-          errors.push(`Row ${i+1}: ${errorMessage}`);
+          const errorMessage = error.response?.data?.message || error.message || "Unknown error";
+          const detailedError = error.response?.data?.error || "";
+          const fullErrorMessage = detailedError 
+            ? `${errorMessage} - Details: ${detailedError}` 
+            : errorMessage;
+          errors.push(`Row ${i+1} (Company: ${row["Company Name"] || "Unknown"}): ${fullErrorMessage}`);
+          console.error(`Company import error for row ${i+1}:`, error);
         }
       }
       
@@ -546,7 +742,13 @@ const DataImportTable = () => {
       }
     } catch (error: any) {
       setImportStatus("error");
-      setErrorMessages([`General error: ${error.message}`]);
+      const errorMessage = error.response?.data?.message || error.message || "Unknown error";
+      const detailedError = error.response?.data?.error || "";
+      const fullErrorMessage = detailedError 
+        ? `${errorMessage} - Details: ${detailedError}` 
+        : errorMessage;
+      setErrorMessages([`General company import error: ${fullErrorMessage}`]);
+      console.error("Company import general error:", error);
     }
   };
 
@@ -560,6 +762,29 @@ const DataImportTable = () => {
     if (missingHeaders.length > 0) {
       setImportStatus("error");
       setErrorMessages([`Missing required headers: ${missingHeaders.join(", ")}`]);
+      return;
+    }
+    
+    // Pre-validate ALL rows to catch all errors upfront
+    console.log(`Pre-validating ${data.length} ports to catch all errors...`);
+    const validationErrors: string[] = [];
+    
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowNumber = i + 2; // +2 because Excel starts at row 1 and has headers
+      
+      // Validate the row structure and data
+      const validationError = validatePortRow(row);
+      if (validationError) {
+        validationErrors.push(`Row ${rowNumber} (${row["PORT_Name"] || "Unknown"}): ${validationError}`);
+      }
+    }
+    
+    // If there are validation errors, show them all and stop
+    if (validationErrors.length > 0) {
+      setImportStatus("error");
+      setErrorMessages(validationErrors);
+      setImportStats({ success: 0, failed: validationErrors.length });
       return;
     }
     
@@ -665,8 +890,13 @@ const DataImportTable = () => {
           successCount.value++;
         } catch (error: any) {
           failedCount.value++;
-          const errorMessage = error.response?.data?.message || error.message;
-          errors.push(`Row ${i+1}: ${errorMessage}`);
+          const errorMessage = error.response?.data?.message || error.message || "Unknown error";
+          const detailedError = error.response?.data?.error || "";
+          const fullErrorMessage = detailedError 
+            ? `${errorMessage} - Details: ${detailedError}` 
+            : errorMessage;
+          errors.push(`Row ${i+1} (Port: ${row["PORT_Name"] || "Unknown"}): ${fullErrorMessage}`);
+          console.error(`Port import error for row ${i+1}:`, error);
         }
       }
       
@@ -688,8 +918,203 @@ const DataImportTable = () => {
       }
     } catch (error: any) {
       setImportStatus("error");
-      setErrorMessages([`General error: ${error.message}`]);
+      const errorMessage = error.response?.data?.message || error.message || "Unknown error";
+      const detailedError = error.response?.data?.error || "";
+      const fullErrorMessage = detailedError 
+        ? `${errorMessage} - Details: ${detailedError}` 
+        : errorMessage;
+      setErrorMessages([`General port import error: ${fullErrorMessage}`]);
+      console.error("Port import general error:", error);
     }
+  };
+
+  // Enhanced date parsing function with timezone-safe processing
+  const parseFlexibleDate = (dateStr: string): Date | null => {
+    if (!dateStr || dateStr.trim() === "") return null;
+    
+    const trimmed = dateStr.trim();
+    
+    // Try manual parsing for DD-MM-YYYY format (most common in your system)
+    const ddmmyyyy = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (ddmmyyyy) {
+      const day = parseInt(ddmmyyyy[1]);
+      const month = parseInt(ddmmyyyy[2]);
+      const year = parseInt(ddmmyyyy[3]);
+      
+      // Create date as local date without timezone conversion
+      // This ensures the date stays exactly as entered
+      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // Set to noon to avoid timezone issues
+      if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+        return date;
+      }
+    }
+    
+    // Try manual parsing for YYYY-MM-DD format
+    const yyyymmdd = trimmed.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})$/);
+    if (yyyymmdd) {
+      const year = parseInt(yyyymmdd[1]);
+      const month = parseInt(yyyymmdd[2]);
+      const day = parseInt(yyyymmdd[3]);
+      
+      const date = new Date(year, month - 1, day, 12, 0, 0, 0); // Set to noon to avoid timezone issues
+      if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+        return date;
+      }
+    }
+    
+    // Try MM-DD-YYYY format as fallback
+    const mmddyyyy = trimmed.match(/^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/);
+    if (mmddyyyy) {
+      const month = parseInt(mmddyyyy[1]);
+      const day = parseInt(mmddyyyy[2]);
+      const year = parseInt(mmddyyyy[3]);
+      
+      // Only use this format if month > 12 or day makes sense as month
+      if (month <= 12 && day <= 31) {
+        const date = new Date(year, month - 1, day, 12, 0, 0, 0);
+        if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+          return date;
+        }
+      }
+    }
+    
+    // Try ISO date as last resort
+    try {
+      const isoDate = new Date(trimmed);
+      if (!isNaN(isoDate.getTime()) && isoDate.getFullYear() > 1900) {
+        // Convert to local date to avoid timezone issues
+        const localDate = new Date(isoDate.getFullYear(), isoDate.getMonth(), isoDate.getDate(), 12, 0, 0, 0);
+        return localDate;
+      }
+    } catch (e) {
+      // Ignore ISO parsing errors
+    }
+    
+    return null; // Could not parse
+  };
+
+  // Format date consistently as DD-MM-YYYY for display and storage
+  const formatDateToDDMMYYYY = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) return "";
+    
+    const day = date.getDate().toString().padStart(2, '0');
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const year = date.getFullYear();
+    
+    return `${day}-${month}-${year}`;
+  };
+
+  // Create timezone-safe ISO string for storage (stores as local date, not UTC)
+  const createLocalDateISO = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) return "";
+    
+    // Create proper ISO string with timezone information
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    
+    // Return full ISO-8601 DateTime format as expected by Prisma
+    return `${year}-${month}-${day}T12:00:00.000Z`;
+  };
+
+  // Create date string for form inputs (YYYY-MM-DD format)
+  const createDateInputString = (date: Date): string => {
+    if (!date || isNaN(date.getTime())) return "";
+    
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    
+    return `${year}-${month}-${day}`;
+  };
+
+  // Enhanced lookup functions for container import - Handle both IDs and Names
+  const findPortByIdOrName = (portsData: any[], value: string): any | null => {
+    if (!value || value.trim() === "") return null;
+    
+    const trimmedValue = value.trim();
+    
+    // First try to find by ID (if value is a number)
+    if (!isNaN(Number(trimmedValue))) {
+      const portById = portsData.find((p: any) => p.id === Number(trimmedValue));
+      if (portById) return portById;
+    }
+    
+    // Then try to find by port name (case insensitive)
+    const portByName = portsData.find(
+      (p: any) => p.portName.toLowerCase().trim() === trimmedValue.toLowerCase()
+    );
+    if (portByName) return portByName;
+    
+    // Finally try to find by port code (case insensitive)
+    const portByCode = portsData.find(
+      (p: any) => p.portCode.toLowerCase().trim() === trimmedValue.toLowerCase()
+    );
+    
+    return portByCode || null;
+  };
+
+  const findDepotByIdOrName = (addressBookData: any[], value: string): any | null => {
+    if (!value || value.trim() === "") return null;
+    
+    const trimmedValue = value.trim();
+    
+    // First try to find by ID (if value is a number)
+    if (!isNaN(Number(trimmedValue))) {
+      const depotById = addressBookData.find((a: any) => a.id === Number(trimmedValue));
+      if (depotById) return depotById;
+    }
+    
+    // Then try to find by company name (case insensitive)
+    // Filter for companies that have "Depot" or "Terminal" in business type
+    const depotByName = addressBookData.find((a: any) => {
+      const nameMatches = a.companyName.toLowerCase().trim() === trimmedValue.toLowerCase();
+      const isDepotType = a.businessType && 
+        (a.businessType.toLowerCase().includes("depot") || 
+         a.businessType.toLowerCase().includes("terminal"));
+      return nameMatches && isDepotType;
+    });
+    
+    if (depotByName) return depotByName;
+    
+    // If not found with depot filter, try general name match
+    const generalMatch = addressBookData.find(
+      (a: any) => a.companyName.toLowerCase().trim() === trimmedValue.toLowerCase()
+    );
+    
+    return generalMatch || null;
+  };
+
+  const findLeasorByIdOrName = (addressBookData: any[], value: string): any | null => {
+    if (!value || value.trim() === "") return null;
+    
+    const trimmedValue = value.trim();
+    
+    // First try to find by ID (if value is a number)
+    if (!isNaN(Number(trimmedValue))) {
+      const leasorById = addressBookData.find((a: any) => a.id === Number(trimmedValue));
+      if (leasorById) return leasorById;
+    }
+    
+    // Then try to find by company name (case insensitive)
+    // Prefer companies that have "Leasor" or "Owner" in business type
+    const leasorByName = addressBookData.find((a: any) => {
+      const nameMatches = a.companyName.toLowerCase().trim() === trimmedValue.toLowerCase();
+      const isLeasorType = a.businessType && 
+        (a.businessType.toLowerCase().includes("leasor") || 
+         a.businessType.toLowerCase().includes("owner") ||
+         a.businessType.toLowerCase().includes("leasing"));
+      return nameMatches && isLeasorType;
+    });
+    
+    if (leasorByName) return leasorByName;
+    
+    // If not found with leasor filter, try general name match
+    const generalMatch = addressBookData.find(
+      (a: any) => a.companyName.toLowerCase().trim() === trimmedValue.toLowerCase()
+    );
+    
+    return generalMatch || null;
   };
 
   // Process container import data
@@ -721,6 +1146,35 @@ const DataImportTable = () => {
     const failedCount = { value: 0 };
     const errors: string[] = [];
     const skippedRows: string[] = [];
+    
+    // Pre-validate ALL rows to catch all errors upfront
+    console.log(`Pre-validating ${nonEmptyData.length} containers to catch all errors...`);
+    const validationErrors: string[] = [];
+    
+    for (let i = 0; i < nonEmptyData.length; i++) {
+      const row = nonEmptyData[i];
+      const rowNumber = i + 2; // +2 because Excel starts at row 1 and has headers
+      
+      // Skip if container number is empty
+      if (!row["Container Number"] || row["Container Number"].trim() === "") {
+        validationErrors.push(`Row ${rowNumber}: Empty container number`);
+        continue;
+      }
+      
+      // Validate the row structure and data
+      const validationError = validateContainerRow(row);
+      if (validationError) {
+        validationErrors.push(`Row ${rowNumber} (${row["Container Number"] || "Unknown"}): ${validationError}`);
+      }
+    }
+    
+    // If there are validation errors, show them all and stop
+    if (validationErrors.length > 0) {
+      setImportStatus("error");
+      setErrorMessages(validationErrors);
+      setImportStats({ success: 0, failed: validationErrors.length });
+      return;
+    }
     
     try {
       // Fetch all address book entries to map names to IDs
@@ -771,19 +1225,19 @@ const DataImportTable = () => {
             containerSize: row["Container Size"]?.trim() || "20TK",
             containerClass: row["Container Class"]?.trim() || "",
             containerCapacity: row["Capacity"]?.trim() || "",
-            capacityUnit: "L",
+            capacityUnit: row["Container Unit"]?.trim().toUpperCase() || "L", // Make Container Unit case insensitive
             manufacturer: row["Manufacturer"]?.trim() || "",
             buildYear: row["Build Year"]?.trim() || "",
             grossWeight: (row["Gross Wt"] && String(row["Gross Wt"]).trim() !== "") ? String(row["Gross Wt"]).trim() : "",
             tareWeight: (row["Tare Wt"] && String(row["Tare Wt"]).trim() !== "") ? String(row["Tare Wt"]).trim() : "",
-            InitialSurveyDate: "",
+            InitialSurveyDate: row["Initial Survey Date"] ? createLocalDateISO(parseFlexibleDate(row["Initial Survey Date"]) || new Date()) : "", // Handle Initial Survey Date with timezone-safe processing
             leasingInfo: [],
             periodicTankCertificates: [],
             onHireReport: []
           };
           
-          // Handle ownership-specific fields - NO DEFAULT VALUES
-          if (ownershipUpper === "OWN" || ownershipUpper === "OWNED") {
+          // Handle ownership-specific fields - Only "Own" or "Lease" allowed
+          if (ownershipUpper === "OWN") {
             inventoryPayload.ownership = "Own";
             
             // For OWN containers, set port and depot at inventory level
@@ -792,63 +1246,52 @@ const DataImportTable = () => {
             let port = null;
             let depot = null;
             
-            // Find port - handle both ID and name
+            // Find port using enhanced lookup - handle both ID and name
             if (row["Onhire Location"] && row["Onhire Location"].trim() !== "") {
               const onHireLocationValue = row["Onhire Location"].trim();
-              // First try to find by ID with proper number conversion
-              port = portsEntries.find((p: any) => p.id === Number(onHireLocationValue));
-              
-              // If not found by ID, try by name
-              if (!port) {
-                port = portsEntries.find(
-                  (p: any) => p.portName.toLowerCase().trim() === onHireLocationValue.toLowerCase().trim()
-                );
-              }
+              port = findPortByIdOrName(portsEntries, onHireLocationValue);
               
               if (port) {
                 portId = port.id;
-                console.log(`Found port: ${port.portName} (ID: ${port.id})`);
+                console.log(`✓ Found port: ${port.portName} (ID: ${port.id}) for "${onHireLocationValue}"`);
               } else {
-                console.warn(`Port "${onHireLocationValue}" not found for container ${row["Container Number"]}`);
+                throw new Error(`Onhire Location "${onHireLocationValue}" not found. Please check the port name, code, or ID exists in the system.`);
               }
+            } else {
+              throw new Error(`Onhire Location is required for container ${row["Container Number"]}`);
             }
             
-            // Fix depot lookup
-            // Fix depot lookup
+            // Find depot using enhanced lookup - handle both ID and name
             if (row["On Hire DEPOT"] && row["On Hire DEPOT"].trim() !== "") {
               const depotValue = row["On Hire DEPOT"].trim();
-              // First try to find by ID with proper number conversion
-              depot = addressBookEntries.find((a: any) => a.id === Number(depotValue));
+              depot = findDepotByIdOrName(addressBookEntries, depotValue);
               
-              // If not found by ID, try by name
-              if (!depot) {
-                depot = addressBookEntries.find(
-                  (a: any) => a.companyName.toLowerCase().trim() === depotValue.toLowerCase().trim()
-                );
-              }
               if (depot) {
                 depotId = depot.id;
-                console.log(`Found depot: ${depot.companyName} (ID: ${depot.id})`);
+                console.log(`✓ Found depot: ${depot.companyName} (ID: ${depot.id}) for "${depotValue}"`);
               } else {
-                console.warn(`Depot "${depotValue}" not found for container ${row["Container Number"]}`);
+                throw new Error(`On Hire DEPOT "${depotValue}" not found. Please check the depot name or ID exists in the system with business type containing "Depot" or "Terminal".`);
               }
+            } else {
+              throw new Error(`On Hire DEPOT is required for container ${row["Container Number"]}`);
             }
 
             // Create leasing info for OWN containers
             if (portId && depotId) {
-              // Parse dates safely
-              let onHireDate = new Date().toISOString();
+              // Parse dates safely using enhanced timezone-safe date parsing
+              let onHireDate = createLocalDateISO(new Date());
               if (row["On-Hire Date"] && row["On-Hire Date"].trim() !== "") {
-                try {
-                  onHireDate = new Date(row["On-Hire Date"]).toISOString();
-                } catch (e) {
+                const parsedDate = parseFlexibleDate(row["On-Hire Date"]);
+                if (parsedDate) {
+                  onHireDate = createLocalDateISO(parsedDate);
+                } else {
                   console.warn(`Invalid date format for On-Hire Date: ${row["On-Hire Date"]}`);
                 }
               }
               
               inventoryPayload.leasingInfo.push({
                 ownershipType: "Own",
-                leasingRefNo: `OWN-${row["Container Number"]}`,
+                leasingRefNo: row["Lease Ref No"] || `OWN-${row["Container Number"]}`,
                 leasoraddressbookId: depotId,
                 onHireDepotaddressbookId: depotId,
                 portId: portId,
@@ -866,11 +1309,11 @@ const DataImportTable = () => {
               console.log(`Final inventory payload has port: ${portId} and depot: ${depotId}`);
             }
 
-          } else if (ownershipUpper === "LEASED" || ownershipUpper === "LEASE") {
-            // For LEASED containers
+          } else if (ownershipUpper === "LEASE") {
+            // For LEASE containers
             inventoryPayload.ownership = "Lease";
             
-            // IMPORTANT: DO NOT set port/depot at inventory level for leased containers
+            // IMPORTANT: DO NOT set port/depot at inventory level for lease containers
             delete inventoryPayload.portId;
             delete inventoryPayload.onHireDepotaddressbookId;
             
@@ -879,126 +1322,73 @@ const DataImportTable = () => {
             let portId = null;
             let depotId = null;
             
-            // Find leasor from OWNER column - REQUIRED for leased containers
-            if (row["OWNER"] && row["OWNER"].trim() !== "") {
-              const ownerValue = row["OWNER"].trim();
-              const leasor = addressBookEntries.find(
-                (a: any) => a.companyName.toLowerCase().trim() === ownerValue.toLowerCase().trim() ||
-                           a.id.toString() === ownerValue
-              );
+            // Find leasor from Leasor Name column using enhanced lookup - REQUIRED for lease containers
+            if (row["Leasor Name"] && row["Leasor Name"].trim() !== "") {
+              const leasorValue = row["Leasor Name"].trim();
+              const leasor = findLeasorByIdOrName(addressBookEntries, leasorValue);
+              
               if (leasor) {
                 leasorId = leasor.id;
+                console.log(`✓ Found leasor: ${leasor.companyName} (ID: ${leasor.id}) for "${leasorValue}"`);
               } else {
-                console.warn(`Leasor "${ownerValue}" not found for container ${row["Container Number"]}`);
+                throw new Error(`Leasor Name "${leasorValue}" not found. Please check the leasor name or ID exists in the system, preferably with business type containing "Leasor", "Owner", or "Leasing".`);
               }
-            }
+            } else {
+                          throw new Error(`Leasor Name is required for Lease container ${row["Container Number"]}`);
+          }
             
-            // Find port for leasing record - handle both ID and name
+            // Find port for leasing record using enhanced lookup - handle both ID and name
             if (row["Onhire Location"] && row["Onhire Location"].trim() !== "") {
               const onHireLocationValue = row["Onhire Location"].trim();
-              
-              // First try to find by ID with proper number conversion
-              let port = portsEntries.find((p: any) => p.id === Number(onHireLocationValue));
-              
-              // If not found by ID, try by name
-              if (!port) {
-                port = portsEntries.find(
-                  (p: any) => p.portName.toLowerCase().trim() === onHireLocationValue.toLowerCase().trim()
-                );
-              }
+              const port = findPortByIdOrName(portsEntries, onHireLocationValue);
               
               if (port) {
                 portId = port.id;
-                console.log(`Found leased port: ${port.portName} (ID: ${port.id})`);
+                console.log(`✓ Found leased port: ${port.portName} (ID: ${port.id}) for "${onHireLocationValue}"`);
               } else {
-                console.warn(`Port "${onHireLocationValue}" not found for container ${row["Container Number"]}`);
+                throw new Error(`Onhire Location "${onHireLocationValue}" not found for Lease container. Please check the port name, code, or ID exists in the system.`);
               }
+            } else {
+              throw new Error(`Onhire Location is required for Lease container ${row["Container Number"]}`);
             }
             
-            // Find depot for leasing record - handle both ID and name
+            // Find depot for leasing record using enhanced lookup - handle both ID and name
             if (row["On Hire DEPOT"] && row["On Hire DEPOT"].trim() !== "") {
               const depotValue = row["On Hire DEPOT"].trim();
-              
-              // First try to find by ID with proper number conversion
-              let depot = addressBookEntries.find((a: any) => a.id === Number(depotValue));
-              
-              // If not found by ID, try by name
-              if (!depot) {
-                depot = addressBookEntries.find(
-                  (a: any) => a.companyName.toLowerCase().trim() === depotValue.toLowerCase().trim()
-                );
-              }
+              const depot = findDepotByIdOrName(addressBookEntries, depotValue);
               
               if (depot) {
                 depotId = depot.id;
-                console.log(`Found leased depot: ${depot.companyName} (ID: ${depot.id})`);
+                console.log(`✓ Found leased depot: ${depot.companyName} (ID: ${depot.id}) for "${depotValue}"`);
               } else {
-                console.warn(`Depot "${depotValue}" not found for container ${row["Container Number"]}`);
+                throw new Error(`On Hire DEPOT "${depotValue}" not found for Lease container. Please check the depot name or ID exists in the system with business type containing "Depot" or "Terminal".`);
               }
+            } else {
+              throw new Error(`On Hire DEPOT is required for Lease container ${row["Container Number"]}`);
             }
             
-            // Use fallbacks if needed
-            if (!leasorId) {
-              // Find first company that could be a leasor
-              const leasorCompanies = addressBookEntries.filter((a: any) => 
-                a.businessType && (a.businessType.toLowerCase().includes("leasing") || 
-                                 a.businessType.toLowerCase().includes("owner"))
-              );
-              if (leasorCompanies.length > 0) {
-                leasorId = leasorCompanies[0].id;
-                console.warn(`Using default leasor for container ${row["Container Number"]}`);
-              } else if (addressBookEntries.length > 0) {
-                leasorId = addressBookEntries[0].id;
-                console.warn(`Using first address book entry as leasor for container ${row["Container Number"]}`);
-              }
-            }
+            // All required fields should be found by now, no fallbacks needed since validation is strict
             
-            if (!portId && portsEntries.length > 0) {
-              portId = portsEntries[0].id;
-              console.warn(`Using default port for container ${row["Container Number"]}`);
-            }
-            
-            if (!depotId) {
-              const depotEntries = addressBookEntries.filter((a: any) => 
-                a.businessType && a.businessType.toLowerCase().includes("depot")
-              );
-              if (depotEntries.length > 0) {
-                depotId = depotEntries[0].id;
-                console.warn(`Using default depot for container ${row["Container Number"]}`);
-              } else if (addressBookEntries.length > 0) {
-                depotId = addressBookEntries[0].id;
-                console.warn(`Using first address book entry as depot for container ${row["Container Number"]}`);
-              }
-            }
-            
-            // Create leasing info record - THIS IS CRITICAL FOR LEASED CONTAINERS
+            // Create leasing info record - THIS IS CRITICAL FOR LEASE CONTAINERS
+            // Since validation is strict, all IDs should be found by now
             if (leasorId && portId && depotId) {
-              // Parse dates safely
-              let onHireDate = new Date().toISOString();
+              // Parse dates safely using enhanced timezone-safe date parsing
+              let onHireDate = createLocalDateISO(new Date());
               let offHireDate = null;
               
               if (row["On-Hire Date"] && row["On-Hire Date"].trim() !== "") {
-                try {
-                  onHireDate = new Date(row["On-Hire Date"]).toISOString();
-                } catch (e) {
+                const parsedDate = parseFlexibleDate(row["On-Hire Date"]);
+                if (parsedDate) {
+                  onHireDate = createLocalDateISO(parsedDate);
+                } else {
                   console.warn(`Invalid date format for On-Hire Date: ${row["On-Hire Date"]}`);
                 }
               }
               
               if (row["Off-Hire Date"] && row["Off-Hire Date"].trim() !== "") {
-                let raw = row["Off-Hire Date"].trim();
-                let parsed = null;
-                // Try DD-MM-YYYY
-                const ddmmyyyy = raw.match(/^([0-9]{1,2})[-\/ ]([0-9]{1,2})[-\/ ]([0-9]{4})$/);
-                if (ddmmyyyy) {
-                  // JS Date: yyyy-mm-dd
-                  parsed = new Date(`${ddmmyyyy[3]}-${ddmmyyyy[2].padStart(2, '0')}-${ddmmyyyy[1].padStart(2, '0')}`);
-                } else {
-                  // Try ISO or MM/DD/YYYY fallback
-                  parsed = new Date(raw);
-                }
-                if (!isNaN(parsed.getTime())) {
-                  offHireDate = parsed.toISOString();
+                const parsedOffHireDate = parseFlexibleDate(row["Off-Hire Date"]);
+                if (parsedOffHireDate) {
+                  offHireDate = createLocalDateISO(parsedOffHireDate);
                 } else {
                   console.warn(`Invalid date format for Off-Hire Date in row ${rowNumber}: ${row["Off-Hire Date"]}`);
                   // Leave as null if invalid
@@ -1006,8 +1396,8 @@ const DataImportTable = () => {
               }
               
               inventoryPayload.leasingInfo.push({
-                ownershipType: "Leased",
-                leasingRefNo: row["LEASE REF"] || `LEASE-${row["Container Number"]}`,
+                ownershipType: "Leased", // Backend expects "Leased" not "Lease"
+                leasingRefNo: row["Lease Ref No"] || `LEASE-${row["Container Number"]}`,
                 leasoraddressbookId: leasorId,
                 onHireDepotaddressbookId: depotId,
                 portId: portId,
@@ -1021,33 +1411,34 @@ const DataImportTable = () => {
             }
           }
           
-          // Add periodic tank certificates if provided
+          // Add periodic tank certificates if provided with timezone-safe date processing
           if (row["Last Inspection Date"] && row["Inspection Type"] && row["Last Inspection Date"].trim() !== "") {
-            try {
-              const inspectionDate = new Date(row["Last Inspection Date"]).toISOString();
-              const nextDueDate = row["Next Inspection Due"] && row["Next Inspection Due"].trim() !== "" 
-                ? new Date(row["Next Inspection Due"]).toISOString() 
-                : new Date().toISOString();
-                
+            const inspectionDate = parseFlexibleDate(row["Last Inspection Date"]);
+            const nextDueDate = row["Next Inspection Due Date"] && row["Next Inspection Due Date"].trim() !== "" 
+              ? parseFlexibleDate(row["Next Inspection Due Date"])
+              : new Date();
+              
+            if (inspectionDate) {
               inventoryPayload.periodicTankCertificates.push({
-                inspectionDate: inspectionDate,
+                inspectionDate: createLocalDateISO(inspectionDate),
                 inspectionType: row["Inspection Type"],
-                nextDueDate: nextDueDate,
+                nextDueDate: createLocalDateISO(nextDueDate || new Date()),
                 certificate: row["Certificate"] || ""
               });
-            } catch (e) {
+            } else {
               console.warn(`Invalid date format for inspection dates in row ${rowNumber}`);
             }
           }
           
-          // Add on-hire report if provided
+          // Add on-hire report if provided with timezone-safe date processing
           if (row["Report Date"] && row["Report Date"].trim() !== "") {
-            try {
+            const reportDate = parseFlexibleDate(row["Report Date"]);
+            if (reportDate) {
               inventoryPayload.onHireReport.push({
-                reportDate: new Date(row["Report Date"]).toISOString(),
+                reportDate: createLocalDateISO(reportDate),
                 reportDocument: row["Report Document"] || ""
               });
-            } catch (e) {
+            } else {
               console.warn(`Invalid date format for report date in row ${rowNumber}`);
             }
           }
@@ -1071,7 +1462,7 @@ const DataImportTable = () => {
             successCount.value++;
             
             // After successfully creating the inventory record for an 'Own' container:
-            if (ownershipUpper === 'OWN' || ownershipUpper === 'OWNED') {
+            if (ownershipUpper === 'OWN') {
               // Get portId and depotId from inventoryPayload if available
               const portId = inventoryPayload.portId;
               const depotId = inventoryPayload.onHireDepotaddressbookId;
@@ -1080,16 +1471,22 @@ const DataImportTable = () => {
                 failedCount.value++;
                 errors.push(`Row ${rowNumber} (${row["Container Number"]}): Missing port or depot for OWN container (portId: ${portId}, depotId: ${depotId})`);
               } else {
-                // Get onHireDate and remarks from leasingInfo if available
+                // Get onHireDate and remarks from leasingInfo if available with timezone-safe processing
                 const leasingInfo = inventoryPayload.leasingInfo && inventoryPayload.leasingInfo.length > 0 ? inventoryPayload.leasingInfo[0] : {};
-                const onHireDate = leasingInfo.onHireDate || new Date().toISOString();
+                let onHireDate = createLocalDateISO(new Date());
+                if (row["On-Hire Date"] && row["On-Hire Date"].trim() !== "") {
+                  const parsedDate = parseFlexibleDate(row["On-Hire Date"]);
+                  if (parsedDate) {
+                    onHireDate = createLocalDateISO(parsedDate);
+                  }
+                }
                 const remarks = leasingInfo.remarks || '';
                 // Get createdInventoryId from response
                 const createdInventoryId = response.data?.id;
                 try {
                   await axios.post('http://localhost:8000/leasinginfo', {
                     ownershipType: 'Own',
-                    leasingRefNo: `OWN-${row["Container Number"]}`,
+                    leasingRefNo: row["Lease Ref No"] || `OWN-${row["Container Number"]}`,
                     leasoraddressbookId: depotId,
                     onHireDepotaddressbookId: depotId,
                     portId: portId,
@@ -1113,8 +1510,13 @@ const DataImportTable = () => {
           }
         } catch (error: any) {
           failedCount.value++;
-          const errorMessage = error.message || "Unknown error";
-          errors.push(`Row ${rowNumber} (${row["Container Number"] || "Unknown"}): ${errorMessage}`);
+          const errorMessage = error.response?.data?.message || error.message || "Unknown error";
+          const detailedError = error.response?.data?.error || "";
+          const fullErrorMessage = detailedError 
+            ? `${errorMessage} - Details: ${detailedError}` 
+            : errorMessage;
+          errors.push(`Row ${rowNumber} (Container: ${row["Container Number"] || "Unknown"}): ${fullErrorMessage}`);
+          console.error(`Container import error for row ${rowNumber}:`, error);
         }
       }
       
@@ -1143,7 +1545,13 @@ const DataImportTable = () => {
       }
     } catch (error: any) {
       setImportStatus("error");
-      setErrorMessages([`General error: ${error.message}`]);
+      const errorMessage = error.response?.data?.message || error.message || "Unknown error";
+      const detailedError = error.response?.data?.error || "";
+      const fullErrorMessage = detailedError 
+        ? `${errorMessage} - Details: ${detailedError}` 
+        : errorMessage;
+      setErrorMessages([`General container import error: ${fullErrorMessage}`]);
+      console.error("Container import general error:", error);
     }
   };
 
@@ -1217,7 +1625,7 @@ const DataImportTable = () => {
               {selectedCategory === "containers" && (
                 <>
                   <li>Download the CSV template</li>
-                  <li>Fill it with your container data (all required fields must be filled)</li>
+                  <li>Fill it with your container data (all fields are required except periodic certificates and onhire reports)</li>
                   <li>Upload the completed file</li>
                   <li>Data will be automatically added to the Container Inventory</li>
                 </>
@@ -1290,7 +1698,7 @@ const DataImportTable = () => {
           {importStatus === "success" && importStats.failed > 0 && (
             <div className="mt-4 text-center">
               <p className="text-sm text-yellow-400">
-                {importStats.failed} {importStats.failed === 1 ? "error" : "errors"} occurred during import. The records are already present in the database.
+                {importStats.failed} {importStats.failed === 1 ? "error" : "errors"} occurred during import. Please check the errors and try again.
               </p>
             </div>
           )}

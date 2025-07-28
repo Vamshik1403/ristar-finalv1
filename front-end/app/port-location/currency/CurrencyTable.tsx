@@ -161,7 +161,7 @@ const CurrencyPage = () => {
                         size="icon"
                         title="Edit"
                         onClick={() => handleEditClick(currency.id)}
-                        className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer"
+                        className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer dark:hover:bg-blue-900/40"
                       >
                         <Pencil size={16} />
                       </Button>
@@ -170,7 +170,7 @@ const CurrencyPage = () => {
                         size="icon"
                         title="Delete"
                         onClick={() => handleDelete(currency.id)}
-                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer"
+                        className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer dark:hover:bg-red-900/40"
                       >
                         <Trash2 size={16} />
                       </Button>

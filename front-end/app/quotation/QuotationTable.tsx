@@ -393,7 +393,7 @@ const QuotationPage = () => {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleView(q)}
-                    className="h-8 w-8 text-purple-400 hover:text-purple-300 hover:bg-purple-900/40 cursor-pointer"
+                    className="h-8 w-8 text-purple-400 hover:text-purple-300 hover:bg-purple-900/40 cursor-pointer dark:hover:bg-purple-900/40"
                     title="View Details"
                   >
                     <Eye size={16} />
@@ -404,7 +404,7 @@ const QuotationPage = () => {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleDownloadPDF(q)}
-                    className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-900/40 cursor-pointer"
+                    className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-900/40 cursor-pointer dark:hover:bg-green-900/40"
                     title="Download PDF"
                     disabled={isGenerating}
                   >
@@ -416,7 +416,7 @@ const QuotationPage = () => {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleEdit(q)}
-                    className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer"
+                    className="h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer dark:hover:bg-blue-900/40"
                     title="Edit"
                   >
                     <Pencil size={16} />
@@ -427,7 +427,7 @@ const QuotationPage = () => {
                     variant="ghost"
                     size="icon"
                     onClick={() => handleDelete(q.id)}
-                    className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer"
+                    className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer dark:hover:bg-red-900/40"
                     title="Delete"
                   >
                     <Trash2 size={16} />
