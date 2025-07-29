@@ -11,6 +11,7 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select";
+import { AlertTriangle, X } from "lucide-react";
 
 const AddQuotationModal = ({
   onClose,
@@ -44,25 +45,42 @@ const AddQuotationModal = ({
     useState(false);
   const [trsHandlingAgents, setTrsHandlingAgents] = useState<any[]>([]);
 
+  // Add validation error state
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [showValidationAlert, setShowValidationAlert] = useState(false);
+
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Clear previous validation errors
+    setValidationErrors({});
+
     // Required field validations
     const requiredFields = [
-      { field: "productId", message: "Please select a product" },
-      { field: "customerId", message: "Please select a customer" },
-      { field: "portOfLoadingId", message: "Please select a port of loading" },
-      {
-        field: "portOfDischargeId",
-        message: "Please select a port of discharge",
-      },
+      "customerId",
+      "productId", 
+      "portOfLoadingId",
+      "portOfDischargeId",
     ];
 
-    for (const { field, message } of requiredFields) {
+    const errors: {[key: string]: string} = {};
+    
+    for (const field of requiredFields) {
       if (!form[field]) {
-        alert(message);
-        return;
+        errors[field] = "Please fill this field";
       }
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      setShowValidationAlert(true);
+      // Auto-hide alert after 2 seconds
+      setTimeout(() => {
+        setShowValidationAlert(false);
+      }, 2000);
+      return;
     }
 
     // Ensure none of the string fields are null
@@ -145,10 +163,19 @@ const AddQuotationModal = ({
       if (!res.ok) throw new Error("Failed to save quotation");
 
       const result = await res.json();
+      
+      // Show success alert
+      if (form.id) {
+        alert('Quotation updated successfully!');
+      } else {
+        alert('Quotation created successfully!');
+      }
+      
       fetchQuotations?.(); // Optional: Refresh parent data
       onClose();
     } catch (err) {
       console.error("Error submitting quotation:", err);
+      alert('Failed to save quotation. Please try again.');
     }
   };
 
@@ -817,7 +844,41 @@ const AddQuotationModal = ({
     fetchImpAgencyCommission();
   }, [form.portOfDischargeId, form.impHAgentId]);
 
+  // Professional Top Alert Component
+  const ProfessionalTopAlert = () => (
+    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] transition-all duration-500 ease-out ${
+      showValidationAlert 
+        ? 'translate-y-0 opacity-100 scale-100' 
+        : '-translate-y-full opacity-0 scale-95'
+    }`}>
+      <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 min-w-[400px] border border-red-400">
+        <div className="flex-shrink-0">
+          <AlertTriangle className="h-5 w-5 animate-pulse" />
+        </div>
+        <div className="flex-grow">
+          <p className="font-medium text-sm">Please fill all the required fields</p>
+        </div>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowValidationAlert(false);
+            setValidationErrors({});
+          }}
+          className="flex-shrink-0 hover:bg-red-700 rounded-full p-1 transition-colors duration-200"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+
+
+
   return (
+    <>
+      <ProfessionalTopAlert />
+      {/* Rest of the component */}
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-sm">
       <div className="bg-white dark:bg-neutral-900 rounded-lg shadow-lg w-[1200px] max-h-[90vh] overflow-y-auto border border-neutral-200 dark:border-neutral-800">
         <div className="flex justify-between items-center px-6 pt-6 pb-2 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
@@ -922,7 +983,7 @@ const AddQuotationModal = ({
             {/* Customer Name */}
             <div className="relative">
               <Label htmlFor="customerName" className="block text-sm text-gray-900 dark:text-white mb-1">
-                Customer Name
+                Customer Name <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="text"
@@ -934,6 +995,9 @@ const AddQuotationModal = ({
                     customerId: null,
                   }));
                   setShowSuggestions(true);
+                  if (validationErrors.customerId) {
+                    setValidationErrors(prev => ({...prev, customerId: ""}));
+                  }
                 }}
                 onFocus={() => setShowSuggestions(true)}
                 onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
@@ -975,6 +1039,9 @@ const AddQuotationModal = ({
                     </li>
                   )}
                 </ul>
+              )}
+              {validationErrors.customerId && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.customerId}</p>
               )}
             </div>
 
@@ -1029,7 +1096,7 @@ const AddQuotationModal = ({
             {/* Product Name */}
             <div className="relative">
               <Label htmlFor="productName" className="block text-sm text-gray-900 dark:text-white mb-1">
-                Product Name
+                Product Name <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="text"
@@ -1041,6 +1108,10 @@ const AddQuotationModal = ({
                     productName: value,
                     productId: undefined,
                   }));
+
+                  if (validationErrors.productId) {
+                    setValidationErrors(prev => ({...prev, productId: ""}));
+                  }
 
                   if (value.length > 1) {
                     fetchProducts(value);
@@ -1133,6 +1204,9 @@ const AddQuotationModal = ({
                   ))}
                 </ul>
               )}
+              {validationErrors.productId && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.productId}</p>
+              )}
             </div>
 
             <hr className="border-t border-gray-600 my-4 col-span-2" />
@@ -1140,7 +1214,7 @@ const AddQuotationModal = ({
             {/* Port Of Loading */}
             <div className="relative">
               <Label htmlFor="portOfLoading" className="block text-sm text-gray-900 dark:text-white mb-1">
-                Port Of Loading
+                Port Of Loading <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="text"
@@ -1152,6 +1226,10 @@ const AddQuotationModal = ({
                     portOfLoading: value,
                     portOfLoadingId: undefined, // reset on change
                   }));
+
+                  if (validationErrors.portOfLoadingId) {
+                    setValidationErrors(prev => ({...prev, portOfLoadingId: ""}));
+                  }
 
                   if (value.length > 1) {
                     fetchPorts(value);
@@ -1195,12 +1273,15 @@ const AddQuotationModal = ({
                   ))}
                 </ul>
               )}
+              {validationErrors.portOfLoadingId && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.portOfLoadingId}</p>
+              )}
             </div>
 
             {/* Port Of Discharge */}
             <div className="relative">
               <Label htmlFor="portOfDischarge" className="block text-sm text-gray-900 dark:text-white mb-1">
-                Port Of Discharge
+                Port Of Discharge <span className="text-red-500">*</span>
               </Label>
               <Input
                 type="text"
@@ -1212,6 +1293,10 @@ const AddQuotationModal = ({
                     portOfDischarge: value,
                     portOfDischargeId: undefined,
                   }));
+
+                  if (validationErrors.portOfDischargeId) {
+                    setValidationErrors(prev => ({...prev, portOfDischargeId: ""}));
+                  }
 
                   if (value.length > 1) {
                     fetchPorts(value);
@@ -1253,6 +1338,9 @@ const AddQuotationModal = ({
                     </li>
                   ))}
                 </ul>
+              )}
+              {validationErrors.portOfDischargeId && (
+                <p className="text-red-500 text-xs mt-1">{validationErrors.portOfDischargeId}</p>
               )}
             </div>
 
@@ -1827,6 +1915,7 @@ const AddQuotationModal = ({
         </form>
       </div>
     </div>
+    </>
   );
 };
 

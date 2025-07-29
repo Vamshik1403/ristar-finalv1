@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { X, Search } from "lucide-react";
+import { X, Search, AlertTriangle } from "lucide-react";
 import axios from "axios";
 import {
   Dialog,
@@ -36,6 +36,10 @@ const AddCompanyForm = ({
   const [selectedPorts, setSelectedPorts] = useState<any[]>([]);
   const [showContacts, setShowContacts] = useState(false);
   const [contacts, setContacts] = useState<any[]>([]);
+
+  // Add validation error state
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [showValidationAlert, setShowValidationAlert] = useState(false);
   type Port = {
     id: number;
     portName: string;
@@ -121,6 +125,11 @@ const AddCompanyForm = ({
     setCountrySearchTerm(country.countryName);
     setFormData((prev) => ({ ...prev, countryId: country.id }));
     setShowSuggestions(false); // This line hides the suggestions
+
+    // Clear validation error for country
+    if (validationErrors.country) {
+      setValidationErrors(prev => ({...prev, country: ""}));
+    }
   };
 
   // Fetch ports from API
@@ -169,7 +178,7 @@ const AddCompanyForm = ({
         countryId: editData.countryId || 0,
       });
 
-      setStatus(editData.status || "active");
+      setStatus(editData.status ? editData.status.toLowerCase() : "active");
       // Always set as array, regardless of input type
       setBusinessTypes(
         Array.isArray(editData.businessType)
@@ -248,6 +257,11 @@ const AddCompanyForm = ({
           ? prev.filter((t) => t !== type) // remove if already selected
           : [...prev, type] // add if not selected
     );
+
+    // Clear validation error for business types
+    if (validationErrors.businessTypes) {
+      setValidationErrors(prev => ({...prev, businessTypes: ""}));
+    }
   };
 
   const handleInputChange = (
@@ -259,9 +273,53 @@ const AddCompanyForm = ({
       ...formData,
       [id]: id === "countryId" ? Number(value) : value,
     });
+
+    // Clear validation error for this field
+    if (validationErrors[id]) {
+      setValidationErrors(prev => ({...prev, [id]: ""}));
+    }
   };
 
   const handleAddCompanyClick = async () => {
+    // Clear previous validation errors
+    setValidationErrors({});
+
+    // Validate required fields
+    const errors: {[key: string]: string} = {};
+    
+    if (!formData.companyName) {
+      errors.companyName = "Please fill this field";
+    }
+    
+    if (!formData.address) {
+      errors.address = "Please fill this field";
+    }
+
+    // Validate status
+    if (!status) {
+      errors.status = "Please fill this field";
+    }
+
+    // Validate country
+    if (!formData.countryId || formData.countryId === 0) {
+      errors.country = "Please fill this field";
+    }
+
+    // Validate business types
+    if (businessTypes.length === 0) {
+      errors.businessTypes = "Please fill this field";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors);
+      setShowValidationAlert(true);
+      // Auto-hide alert after 2 seconds
+      setTimeout(() => {
+        setShowValidationAlert(false);
+      }, 2000);
+      return;
+    }
+
     // Case-insensitive uniqueness check for company name
     if (!editData) {
       try {
@@ -396,8 +454,39 @@ const AddCompanyForm = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isEditMode, countries, formData.countryId]);
 
+  // Professional Top Alert Component
+  const ProfessionalTopAlert = () => (
+    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] transition-all duration-500 ease-out ${
+      showValidationAlert 
+        ? 'translate-y-0 opacity-100 scale-100' 
+        : '-translate-y-full opacity-0 scale-95'
+    }`}>
+      <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 min-w-[400px] border border-red-400">
+        <div className="flex-shrink-0">
+          <AlertTriangle className="h-5 w-5 animate-pulse" />
+        </div>
+        <div className="flex-grow">
+          <p className="font-medium text-sm">Please fill all the required fields</p>
+        </div>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowValidationAlert(false);
+            setValidationErrors({});
+          }}
+          className="flex-shrink-0 hover:bg-red-700 rounded-full p-1 transition-colors duration-200"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-lg">
+    <>
+      <ProfessionalTopAlert />
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-lg">
       <Dialog open onOpenChange={onClose} modal={true}>
         <DialogContent className="max-w-2xl w-full bg-white dark:bg-neutral-900 rounded-lg shadow-lg w-[700px] max-h-[90vh] overflow-y-auto p-0 border border-neutral-200 dark:border-neutral-800" onInteractOutside={e => e.preventDefault()}>
           <DialogHeader className="flex flex-row items-center justify-between px-6 py-4 border-b border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900">
@@ -417,7 +506,12 @@ const AddCompanyForm = ({
                 <label htmlFor="status" className="block text-sm font-medium text-black dark:text-neutral-200 mb-1">
                   Status <span className="text-red-500">*</span>
                 </label>
-                <Select value={status} onValueChange={(value) => setStatus(value)}>
+                <Select value={status} onValueChange={(value) => {
+                  setStatus(value);
+                  if (validationErrors.status) {
+                    setValidationErrors(prev => ({...prev, status: ""}));
+                  }
+                }}>
                   <SelectTrigger className="w-full bg-white dark:bg-neutral-800 text-black dark:text-white border border-neutral-200 dark:border-neutral-700">
                     <SelectValue placeholder="Select Status" />
                   </SelectTrigger>
@@ -430,6 +524,9 @@ const AddCompanyForm = ({
                     </SelectItem>
                   </SelectContent>
                 </Select>
+                {validationErrors.status && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.status}</p>
+                )}
               </div>
               {/* Main Fields */}
               {[
@@ -490,6 +587,9 @@ const AddCompanyForm = ({
                       className="w-full bg-white dark:bg-neutral-800 text-black dark:text-white border border-neutral-200 dark:border-neutral-700 placeholder-neutral-400 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     />
                   )}
+                  {validationErrors[field.id] && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors[field.id]}</p>
+                  )}
                 </div>
               ))}
               {/* Country Search */}
@@ -513,6 +613,10 @@ const AddCompanyForm = ({
                     onChange={e => {
                       setCountrySearchTerm(e.target.value);
                       setUserTypedCountry(true); // Only show suggestions if user typed
+                      // Clear validation error for country
+                      if (validationErrors.country) {
+                        setValidationErrors(prev => ({...prev, country: ""}));
+                      }
                     }}
                     onFocus={() => {
                       if (countrySearchTerm && userTypedCountry) setShowSuggestions(true);
@@ -544,7 +648,7 @@ const AddCompanyForm = ({
                       filteredCountries.map((country) => (
                         <li
                           key={country.id}
-                          className="px-4 py-2 cursor-pointer hover:bg-neutral-200"
+                          className="px-4 py-2 cursor-pointer hover:bg-neutral-400 dark:hover:bg-neutral-600"
                           onMouseDown={() => handleSelectCountry(country)}
                         >
                           {country.countryName}
@@ -554,6 +658,9 @@ const AddCompanyForm = ({
                       <li className="px-4 py-2 text-neutral-400">No countries found</li>
                     )}
                   </ul>
+                )}
+                {validationErrors.country && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.country}</p>
                 )}
               </div>
               {/* Business Types */}
@@ -587,6 +694,9 @@ const AddCompanyForm = ({
                     </label>
                   ))}
                 </div>
+                {validationErrors.businessTypes && (
+                  <p className="text-red-500 text-xs mt-1">{validationErrors.businessTypes}</p>
+                )}
               </div>
             </div>
             {/* Bank Accounts Section */}
@@ -893,6 +1003,7 @@ const AddCompanyForm = ({
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 };
 

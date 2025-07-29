@@ -100,8 +100,9 @@ export class CreateShipmentDto {
   @IsDateString()
   gsDate: string;
 
+  @IsOptional()
   @IsDateString()
-  sob: string;
+  sob?: string;
 
   @IsDateString()
   etaTopod: string;

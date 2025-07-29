@@ -49,14 +49,14 @@ export async function generateCroPdf(
       ? shipment.transhipmentPort?.portName
       : shipment.podPort?.portName;
     const finalPortOfDischarge = shipment.podPort?.portName || "N/A";
-    const carrier = addressBooks.find(
-      (ab: any) => ab.id === shipment.carrierAddressBookId
-    );
+   
+    
     const portOfLoading = shipment.polPort?.portName || "N/A";
 
-    const vesselVoyage = `${carrier?.companyName || "N/A"} / ${
+    const vesselVoyage = `${
       shipment.vesselName || "N/A"
     }`;
+
     const vesselETD = dayjs(shipment.gsDate).format("DD-MMM-YYYY");
     const vesselETA = dayjs(shipment.etaTopod).format("DD-MMM-YYYY");
     const product = products.find((p: any) => p.id === shipment.productId);
@@ -128,7 +128,7 @@ export async function generateCroPdf(
           ["Port of Loading", portOfLoading, "", ""],
           ["Port of Discharge", portOfDischarge, "", ""],
           ["Final Port of Discharge", finalPortOfDischarge, "", ""],
-          ["Vessel / Voyage", vesselVoyage, "", ""],
+          ["Vessel Name", vesselVoyage, "", ""],
           ["Vessel ETD", vesselETD, "", ""],
           ["Vessel ETA", vesselETA, "", ""],
             ["Container Type", containerTypeSummary, "", ""],     // 👈 consistent row

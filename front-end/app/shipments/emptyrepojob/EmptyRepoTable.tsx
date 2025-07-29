@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Pencil, Search, Trash2, Plus } from 'lucide-react';
+import { Pencil, Search, Trash2, Plus, Eye } from 'lucide-react';
 import axios from 'axios';
 import AddEmptyRepoModal from './EmptyRepoJobForm';
+import ViewEmptyRepoJobModal from './ViewEmptyRepoJobModal';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,8 @@ import {
 
 const EmptyRepo = () => {
   const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewEmptyRepoJob, setViewEmptyRepoJob] = useState<any>(null);
   const [emptyRepoJobs, setEmptyRepoJobs] = useState([]);
   const [searchText, setSearchText] = useState('');
   
@@ -174,6 +177,12 @@ const EmptyRepo = () => {
     setShowModal(true);
   };
 
+  // Handle view empty repo job
+  const handleView = (job: any) => {
+    setViewEmptyRepoJob(job);
+    setShowViewModal(true);
+  };
+
   // Filter jobs based on search
   const filteredJobs = emptyRepoJobs.filter((job: any) => {
     const searchLower = searchText.toLowerCase();
@@ -257,6 +266,29 @@ const EmptyRepo = () => {
             refreshShipments={fetchEmptyRepoJobs}
           />
         )}
+
+        {/* View Modal */}
+        {showViewModal && viewEmptyRepoJob && (
+          <ViewEmptyRepoJobModal
+            emptyRepoJob={viewEmptyRepoJob}
+            onClose={() => {
+              setShowViewModal(false);
+            }}
+            onDownload={() => {
+              // You can implement download functionality here if needed
+              console.log('Download functionality not implemented yet');
+            }}
+            onEdit={() => {
+              // Close view modal first
+              setShowViewModal(false);
+              
+              // Then trigger edit with a slight delay
+              setTimeout(() => {
+                handleEdit(viewEmptyRepoJob);
+              }, 100);
+            }}
+          />
+        )}
       </div>
 
               <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 overflow-x-auto shadow-sm">
@@ -298,6 +330,15 @@ const EmptyRepo = () => {
                       .join(', ') || '-'}
                   </TableCell>
                   <TableCell className="space-x-2">
+                    <Button
+                      onClick={() => handleView(job)}
+                      title="View Details"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-purple-400 hover:text-purple-300 hover:bg-purple-900/40 cursor-pointer dark:hover:bg-purple-900/40"
+                    >
+                      <Eye size={16} />
+                    </Button>
                     <Button
                       onClick={() => handleEdit(job)}
                       title="Edit"

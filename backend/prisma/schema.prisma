@@ -433,9 +433,11 @@ model Shipment {
   quantity                      String
   vesselName                    String
   gsDate                        DateTime
-  sob                           DateTime
+  sob                           DateTime?
   etaTopod                      DateTime
   estimateDate                  DateTime
+  createdAt                     DateTime              @default(now())
+  updatedAt                     DateTime              @updatedAt
   movementHistory               MovementHistory[]
   carrierAddressBook            AddressBook?        @relation("ShipmentCarrier", fields: [carrierAddressBookId], references: [id])
   consigneeAddressBook          AddressBook?        @relation("ShipmentConsignee", fields: [consigneeAddressBookId], references: [id])
@@ -483,9 +485,11 @@ model EmptyRepoJob {
   quantity                      String
   vesselName                    String
   gsDate                        DateTime
-  sob                           DateTime
+  sob                           DateTime?
   etaTopod                      DateTime
   estimateDate                  DateTime
+  createdAt                     DateTime                  @default(now())
+  updatedAt                     DateTime                  @updatedAt
   carrierAddressBook            AddressBook?            @relation("ShipmentCarrier", fields: [carrierAddressBookId], references: [id])
   emptyReturnDepotAddressBook   AddressBook?            @relation("ShipmentEmptyReturn", fields: [emptyReturnDepotAddressBookId], references: [id])
   expHandlingAgentAddressBook   AddressBook?            @relation("ShipmentExportHandling", fields: [expHandlingAgentAddressBookId], references: [id])

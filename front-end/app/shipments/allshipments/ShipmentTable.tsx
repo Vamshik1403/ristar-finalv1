@@ -1,9 +1,10 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Pencil, Search, Trash2, Plus, History, Download } from 'lucide-react';
+import { Pencil, Search, Trash2, Plus, History, Download, Eye } from 'lucide-react';
 import axios from 'axios';
 import AddShipmentForm from './AddShipmentForm';
+import ViewShipmentModal from './ViewShipmentModal';
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,8 @@ import { generateCroPdf } from './generateCroPdf';
 
 const AllShipmentsPage = () => {
   const [showModal, setShowModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [viewShipment, setViewShipment] = useState<any>(null);
   const [shipments, setShipments] = useState([]);
   const [containerSearch, setContainerSearch] = useState('');
 
@@ -241,6 +244,12 @@ const AllShipmentsPage = () => {
     setShowModal(true);
   };
 
+  // Handle view shipment
+  const handleView = (shipment: any) => {
+    setViewShipment(shipment);
+    setShowViewModal(true);
+  };
+
   // Add state for allMovements
   const [allMovements, setAllMovements] = useState<any[]>([]);
 
@@ -378,6 +387,26 @@ const AllShipmentsPage = () => {
             refreshShipments={fetchShipments}
           />
         )}
+
+        {/* View Modal */}
+        {showViewModal && viewShipment && (
+          <ViewShipmentModal
+            shipment={viewShipment}
+            onClose={() => {
+              setShowViewModal(false);
+            }}
+            onDownload={() => handleDownloadPDF(viewShipment.id, viewShipment.containers ?? [])}
+            onEdit={() => {
+              // Close view modal first
+              setShowViewModal(false);
+              
+              // Then trigger edit with a slight delay
+              setTimeout(() => {
+                handleEdit(viewShipment);
+              }, 100);
+            }}
+          />
+        )}
       </div>
 
               <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 bg-white dark:bg-black overflow-x-auto shadow-sm">
@@ -432,6 +461,15 @@ const AllShipmentsPage = () => {
                         .join(', ') || '-'}
                     </TableCell>
                     <TableCell className="space-x-2">
+                      <Button
+                        onClick={() => handleView(shipment)}
+                        title="View Details"
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-purple-400 hover:text-purple-300 hover:bg-purple-900/40 cursor-pointer dark:hover:bg-purple-900/40"
+                      >
+                        <Eye size={16} />
+                      </Button>
                       <Button
                         onClick={() => handleEdit(shipment)}
                         title="Edit"

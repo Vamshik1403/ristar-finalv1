@@ -368,7 +368,7 @@ const ProductsInventoryPage = () => {
         </DialogContent>
       </Dialog>
 
-
+          
 
       {/* Filter Modal */}
       {showFilterModal && (

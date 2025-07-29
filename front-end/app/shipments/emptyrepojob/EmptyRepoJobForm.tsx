@@ -29,7 +29,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Label } from "@/components/ui/label";
-import { Plus } from "lucide-react";
+import { Plus, AlertTriangle } from "lucide-react";
 
 type Option = { id: string | number; name: string };
 type SelectOptions = {
@@ -98,6 +98,12 @@ const AddShipmentModal = ({
   const [onHireDepots, setOnHireDepots] = useState<any[]>([]);
   const [containers, setContainers] = useState<any[]>([]);
   const [portSuggestionsForModal, setPortSuggestionsForModal] = useState<any[]>([]);
+
+  // Add validation error state
+  const [validationErrors, setValidationErrors] = useState<{[key: string]: string}>({});
+  const [showValidationAlert, setShowValidationAlert] = useState(false);
+
+
 
   useEffect(() => {
     const fetchMovements = async () => {
@@ -233,6 +239,44 @@ const AddShipmentModal = ({
     e.preventDefault();
 
     try {
+      // Clear previous validation errors
+      setValidationErrors({});
+
+      // Validate required fields ONLY for new jobs (not for edits)
+      if (!form.id) {
+        const requiredFields = [
+          "date",
+          "jobNumber", 
+          "houseBL",
+          "shippingTerm",
+          "portOfLoading",
+          "portOfDischarge",
+          "expHandlingAgentAddressBookId",
+          "impHandlingAgentAddressBookId",
+          "vesselName",
+          "quantity",
+          "emptyReturnDepot",
+        ];
+
+        const errors: {[key: string]: string} = {};
+        
+        for (const field of requiredFields) {
+          if (!form[field]) {
+            errors[field] = "Please fill this field";
+          }
+        }
+
+        if (Object.keys(errors).length > 0) {
+          setValidationErrors(errors);
+          setShowValidationAlert(true);
+          // Auto-hide alert after 2 seconds
+          setTimeout(() => {
+            setShowValidationAlert(false);
+          }, 2000);
+          return;
+        }
+      }
+
       // Validate quantity matches exactly with selected containers
       const currentQuantity = parseInt(form.quantity);
       if (!form.quantity || isNaN(currentQuantity) || currentQuantity <= 0) {
@@ -263,7 +307,7 @@ const AddShipmentModal = ({
         carrierAddressBookId: parseInt(form.carrierId),
         vesselName: form.vesselName || "Default Vessel",
         gsDate: form.gateClosingDate || new Date().toISOString(),
-        sob: form.sobDate || new Date().toISOString(),
+        sob: form.sobDate || null,
         etaTopod: form.etaToPod || new Date().toISOString(),
         emptyReturnDepotAddressBookId: parseInt(form.emptyReturnDepot),
         estimateDate: form.estimatedEmptyReturnDate || new Date().toISOString(),
@@ -753,7 +797,41 @@ const AddShipmentModal = ({
     setModalSelectedContainers([]);
   }, [selectedPort, selectedOnHireDepot]);
 
+  // Professional Top Alert Component
+  const ProfessionalTopAlert = () => (
+    <div className={`fixed top-4 left-1/2 transform -translate-x-1/2 z-[60] transition-all duration-500 ease-out ${
+      showValidationAlert 
+        ? 'translate-y-0 opacity-100 scale-100' 
+        : '-translate-y-full opacity-0 scale-95'
+    }`}>
+      <div className="bg-gradient-to-r from-red-500 to-red-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center space-x-3 min-w-[400px] border border-red-400">
+        <div className="flex-shrink-0">
+          <AlertTriangle className="h-5 w-5 animate-pulse" />
+        </div>
+        <div className="flex-grow">
+          <p className="font-medium text-sm">Please fill all the required fields</p>
+        </div>
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setShowValidationAlert(false);
+            setValidationErrors({});
+          }}
+          className="flex-shrink-0 hover:bg-red-700 rounded-full p-1 transition-colors duration-200"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+
+
+
   return (
+    <>
+      <ProfessionalTopAlert />
+      {/* Rest of the component */}
     <div className="fixed inset-0 bg-opacity-40 flex items-center justify-center z-50 backdrop-blur-lg">
       <Dialog open onOpenChange={onClose} modal={true}>
         <DialogContent
@@ -786,11 +864,17 @@ const AddShipmentModal = ({
                     <Input
                       type="date"
                       value={form.date || ""}
-                      onChange={(e) =>
-                        setForm({ ...form, date: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setForm({ ...form, date: e.target.value });
+                        if (validationErrors.date) {
+                          setValidationErrors(prev => ({...prev, date: ""}));
+                        }
+                      }}
                       className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
                     />
+                    {validationErrors.date && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.date}</p>
+                    )}
                   </div>
 
                   <div>
@@ -835,12 +919,18 @@ const AddShipmentModal = ({
                     <Input
                       type="text"
                       value={form.shippingTerm || "CY-CY"}
-                      onChange={(e) =>
-                        setForm({ ...form, shippingTerm: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setForm({ ...form, shippingTerm: e.target.value });
+                        if (validationErrors.shippingTerm) {
+                          setValidationErrors(prev => ({...prev, shippingTerm: ""}));
+                        }
+                      }}
                       placeholder="CY-CY"
                       className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
                     />
+                    {validationErrors.shippingTerm && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.shippingTerm}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -872,6 +962,10 @@ const AddShipmentModal = ({
                           portOfLoading: value,
                           portOfLoadingId: undefined, // reset on change
                         }));
+
+                        if (validationErrors.portOfLoading) {
+                          setValidationErrors(prev => ({...prev, portOfLoading: ""}));
+                        }
 
                         if (value.length > 1) {
                           fetchPorts(value);
@@ -918,6 +1012,9 @@ const AddShipmentModal = ({
                         ))}
                       </ul>
                     )}
+                    {validationErrors.portOfLoading && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.portOfLoading}</p>
+                    )}
                   </div>
 
                   <div className="relative">
@@ -937,6 +1034,10 @@ const AddShipmentModal = ({
                           portOfDischarge: value,
                           portOfDischargeId: undefined,
                         }));
+
+                        if (validationErrors.portOfDischarge) {
+                          setValidationErrors(prev => ({...prev, portOfDischarge: ""}));
+                        }
 
                         if (value.length > 1) {
                           fetchPorts(value);
@@ -976,6 +1077,9 @@ const AddShipmentModal = ({
                           </li>
                         ))}
                       </ul>
+                    )}
+                    {validationErrors.portOfDischarge && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.portOfDischarge}</p>
                     )}
                   </div>
 
@@ -1155,11 +1259,17 @@ const AddShipmentModal = ({
                   <Input
                     type="text"
                     value={form.quantity || ""}
-                    onChange={(e) =>
-                      setForm({ ...form, quantity: e.target.value })
-                    }
+                    onChange={(e) => {
+                      setForm({ ...form, quantity: e.target.value });
+                      if (validationErrors.quantity) {
+                        setValidationErrors(prev => ({...prev, quantity: ""}));
+                      }
+                    }}
                     className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
                   />
+                  {validationErrors.quantity && (
+                    <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
+                  )}
                 </div>
                 <div className="relative mb-4">
                   <Label
@@ -1327,6 +1437,9 @@ const AddShipmentModal = ({
                           expHandlingAgentAddressBookId: selectedId,
                           expHAgentName: selected?.companyName || "",
                         });
+                        if (validationErrors.expHandlingAgentAddressBookId) {
+                          setValidationErrors(prev => ({...prev, expHandlingAgentAddressBookId: ""}));
+                        }
                       }}
                     >
                       <SelectTrigger className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white border border-neutral-200 dark:border-neutral-700">
@@ -1344,6 +1457,9 @@ const AddShipmentModal = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {validationErrors.expHandlingAgentAddressBookId && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.expHandlingAgentAddressBookId}</p>
+                    )}
                   </div>
 
                   <div>
@@ -1367,6 +1483,9 @@ const AddShipmentModal = ({
                           impHandlingAgentAddressBookId: selectedId,
                           impHAgentName: selected?.companyName || "",
                         });
+                        if (validationErrors.impHandlingAgentAddressBookId) {
+                          setValidationErrors(prev => ({...prev, impHandlingAgentAddressBookId: ""}));
+                        }
                       }}
                     >
                       <SelectTrigger className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white border border-neutral-200 dark:border-neutral-700">
@@ -1384,6 +1503,9 @@ const AddShipmentModal = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {validationErrors.impHandlingAgentAddressBookId && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.impHandlingAgentAddressBookId}</p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -1470,11 +1592,17 @@ const AddShipmentModal = ({
                     <Input
                       type="text"
                       value={form.vesselName || ""}
-                      onChange={(e) =>
-                        setForm({ ...form, vesselName: e.target.value })
-                      }
+                      onChange={(e) => {
+                        setForm({ ...form, vesselName: e.target.value });
+                        if (validationErrors.vesselName) {
+                          setValidationErrors(prev => ({...prev, vesselName: ""}));
+                        }
+                      }}
                       className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
                     />
+                    {validationErrors.vesselName && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.vesselName}</p>
+                    )}
                   </div>
                   <div>
                     <Label
@@ -1546,9 +1674,12 @@ const AddShipmentModal = ({
                     </Label>
                     <Select
                       value={form.emptyReturnDepot?.toString() || ""}
-                      onValueChange={(value) =>
-                        setForm({ ...form, emptyReturnDepot: value })
-                      }
+                      onValueChange={(value) => {
+                        setForm({ ...form, emptyReturnDepot: value });
+                        if (validationErrors.emptyReturnDepot) {
+                          setValidationErrors(prev => ({...prev, emptyReturnDepot: ""}));
+                        }
+                      }}
                     >
                       <SelectTrigger className="w-full p-2.5 bg-white text-black-900 dark:bg-neutral-900 dark:text-white border border-neutral-200 dark:border-neutral-700">
                         <SelectValue placeholder="Select Return Depot" />
@@ -1565,6 +1696,9 @@ const AddShipmentModal = ({
                         ))}
                       </SelectContent>
                     </Select>
+                    {validationErrors.emptyReturnDepot && (
+                      <p className="text-red-500 text-xs mt-1">{validationErrors.emptyReturnDepot}</p>
+                    )}
                   </div>
                   <div>
                     <Label
@@ -1794,24 +1928,26 @@ const AddShipmentModal = ({
                     }}
                   >
                     <div className="flex items-center">
-                      <Checkbox
-                        checked={modalSelectedContainers.some(
-                          (c) => c.id === container.id
-                        )}
-                        onCheckedChange={(checked) => {
-                          if (checked) {
-                            setModalSelectedContainers((prev) => [
-                              ...prev,
-                              container,
-                            ]);
-                          } else {
-                            setModalSelectedContainers((prev) =>
-                              prev.filter((c) => c.id !== container.id)
-                            );
-                          }
-                        }}
-                        className="mr-2"
-                      />
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={modalSelectedContainers.some(
+                            (c) => c.id === container.id
+                          )}
+                          onCheckedChange={(checked) => {
+                            if (checked) {
+                              setModalSelectedContainers((prev) => [
+                                ...prev,
+                                container,
+                              ]);
+                            } else {
+                              setModalSelectedContainers((prev) =>
+                                prev.filter((c) => c.id !== container.id)
+                              );
+                            }
+                          }}
+                          className="mr-2"
+                        />
+                      </div>
                       <div className="flex flex-col">
                         <span className="text-gray-900 dark:text-white text-sm">
                           {container.inventory?.containerNumber || "N/A"}
@@ -1917,112 +2053,10 @@ const AddShipmentModal = ({
         </DialogContent>
       </Dialog>
     </div>
+    </>
   );
 };
 
-const ContainerSearchModal = ({
-  open,
-  onClose,
-  onSelectContainers,
-  countries,
-  ports,
-  containers,
-  selectedCountry,
-  setSelectedCountry,
-  selectedPort,
-  setSelectedPort,
-  modalSelectedContainers,
-  setModalSelectedContainers,
-}: any) => (
-  <Dialog open={open} onOpenChange={onClose}>
-    <DialogContent>
-      <DialogHeader>
-        <DialogTitle>Select Containers</DialogTitle>
-      </DialogHeader>
-      <div className="space-y-4">
-        {/* Country Dropdown */}
-        <div>
-          <label>Country</label>
-          <select
-            value={selectedCountry}
-            onChange={(e) => setSelectedCountry(e.target.value)}
-            className="w-full p-2 border rounded"
-          >
-            <option value="">Select Country</option>
-            {countries.map((c: any) => (
-              <option key={c.id} value={c.id}>
-                {c.countryName}
-              </option>
-            ))}
-          </select>
-        </div>
-        {/* Port Dropdown */}
-        <div>
-          <label>Port</label>
-          <select
-            value={selectedPort}
-            onChange={(e) => setSelectedPort(e.target.value)}
-            className="w-full p-2 border rounded"
-            disabled={!selectedCountry}
-          >
-            <option value="">Select Port</option>
-            {ports.map((p: any) => (
-              <option key={p.id} value={p.id}>
-                {p.portName}
-              </option>
-            ))}
-          </select>
-        </div>
-        {/* Container Multi-Select */}
-        <div>
-          <label>Containers</label>
-          <div className="max-h-40 overflow-y-auto border rounded p-2">
-            {containers.map((c: any) => (
-              <div key={c.id} className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={modalSelectedContainers.some(
-                    (sc: any) => sc.id === c.id
-                  )}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setModalSelectedContainers([
-                        ...modalSelectedContainers,
-                        c,
-                      ]);
-                    } else {
-                      setModalSelectedContainers(
-                        modalSelectedContainers.filter(
-                          (sc: any) => sc.id !== c.id
-                        )
-                      );
-                    }
-                  }}
-                />
-                <span className="ml-2">{c.inventory?.containerNumber}</span>
-              </div>
-            ))}
-            {containers.length === 0 && (
-              <div className="text-neutral-400">No available containers</div>
-            )}
-          </div>
-        </div>
-      </div>
-      <DialogFooter>
-        <button
-          type="button"
-          className="px-4 py-2 bg-blue-600 text-white rounded"
-          onClick={() => {
-            onSelectContainers(modalSelectedContainers);
-            onClose();
-          }}
-          disabled={modalSelectedContainers.length === 0}
-        >
-          Add Selected Containers
-        </button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
-);
+
 
 export default AddShipmentModal;

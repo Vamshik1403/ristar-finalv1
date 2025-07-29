@@ -60,10 +60,16 @@ async create(data: CreateShipmentDto) {
       jobNumber: generatedJobNumber,
       date: parseDate(data.date),
       gsDate: parseDate(data.gsDate),
-      sob: parseDate(data.sob),
       etaTopod: parseDate(data.etaTopod),
       estimateDate: parseDate(data.estimateDate),
     };
+
+    // Handle SOB date conditionally - only set if provided
+    if (data.sob) {
+      shipmentData.sob = new Date(data.sob).toISOString();
+    } else {
+      shipmentData.sob = null;
+    }
 
     // Only include quotationRefNumber if it's provided
     if (data.quotationRefNumber) {

@@ -96,19 +96,27 @@ export class EmptyRepoJobService {
 
     return this.prisma.$transaction(async (tx) => {
       const houseBL = jobNumber; // House BL is same as job number
+      
+      // Build data object
+      const jobDataForCreate: any = {
+        ...jobData,
+        jobNumber,
+        polPortId,
+        podPortId,
+        houseBL,
+        date: parseDate(jobData.date),
+        gsDate: parseDate(jobData.gsDate),
+        etaTopod: parseDate(jobData.etaTopod),
+        estimateDate: parseDate(jobData.estimateDate),
+      };
+
+      // Handle SOB date conditionally - only set if provided
+      if (jobData.sob) {
+        jobDataForCreate.sob = new Date(jobData.sob).toISOString();
+      }
+
       const createdJob = await tx.emptyRepoJob.create({
-        data: {
-          ...jobData,
-          jobNumber,
-          polPortId,
-          podPortId,
-          houseBL,
-          date: parseDate(jobData.date),
-          gsDate: parseDate(jobData.gsDate),
-          sob: parseDate(jobData.sob),
-          etaTopod: parseDate(jobData.etaTopod),
-          estimateDate: parseDate(jobData.estimateDate),
-        },
+        data: jobDataForCreate,
       });
 
       // Rest of the container creation logic remains the same...

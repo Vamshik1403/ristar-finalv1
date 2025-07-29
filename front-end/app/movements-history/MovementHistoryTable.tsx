@@ -314,16 +314,16 @@ const MovementHistoryTable = () => {
 
       {/* Bulk Status Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 backdrop-blur-lg">
           <div className="bg-white dark:bg-neutral-900 p-6 rounded-lg shadow-lg w-full max-w-md border border-gray-300 dark:border-neutral-700">
-            <h2 className="text-lg font-semibold text-white mb-4">Bulk Update Container Status</h2>
+            <h2 className="text-lg font-semibold text-black dark:text-white mb-4">Bulk Update Container Status</h2>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">New Status</label>
+              <label className="block text-sm font-medium mb-1 text-black dark:text-white">New Status</label>
               <select
                 value={newStatus}
                 onChange={(e) => setNewStatus(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-orange-500"
+                className="w-full px-3 py-2 rounded-md bg-white dark:bg-neutral-800 text-black dark:text-white border border-gray-300 dark:border-neutral-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select New Status</option>
                 {availableStatusOptions.map((status) => (
@@ -335,30 +335,30 @@ const MovementHistoryTable = () => {
             </div>
 
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">Date</label>
+              <label className="block text-sm font-medium mb-1 text-black dark:text-white">Date</label>
               <input
                 type="date"
                 value={movementDate}
                 onChange={(e) => setMovementDate(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white"
+                className="w-full px-3 py-2 rounded-md bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white"
               />
             </div>
 
             <div className="mb-6">
-              <label className="block text-sm font-medium mb-1">Remarks</label>
+              <label className="block text-sm font-medium mb-1 text-black dark:text-white">Remarks</label>
               <textarea
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
-                className="w-full px-3 py-2 rounded-md bg-neutral-800 border border-neutral-700 text-white resize-none"
+                className="w-full px-3 py-2 rounded-md bg-white dark:bg-neutral-800 border border-gray-300 dark:border-neutral-700 text-gray-900 dark:text-white resize-none"
                 rows={3}
               />
             </div>
 
             <div className="flex justify-end gap-3">
-              <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-neutral-600 text-white rounded-md">
+              <button onClick={() => setModalOpen(false)} className="px-4 py-2 bg-neutral-600 text-white rounded-md cursor-pointer">
                 Cancel
               </button>
-              <button onClick={handleBulkUpdate} className="px-4 py-2 bg-blue-600 text-white rounded-md">
+              <button onClick={handleBulkUpdate} className="px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer">
                 Confirm
               </button>
             </div>
@@ -401,8 +401,8 @@ const MovementHistoryTable = () => {
       )}
 
       {showFilterModal && (
-        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-lg">
-          <div className="bg-white dark:bg-neutral-800 rounded-lg p-6 w-96 max-w-md mx-4">
+        <div className="fixed inset-0 bg-opacity-50 flex items-center justify-center z-50 backdrop-blur-sm">
+          <div className="bg-white dark:bg-neutral-900 p-6 rounded-lg shadow-lg w-full max-w-md border border-gray-300 dark:border-neutral-700">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Filter Movements</h3>
               <button
@@ -462,7 +462,7 @@ const MovementHistoryTable = () => {
                   setLocationFilter("");
                   setShowFilterModal(false);
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded-md"
+                className="px-4 py-2 bg-red-600 text-white rounded-md cursor-pointer"
               >
                 Reset
               </button>
@@ -473,7 +473,7 @@ const MovementHistoryTable = () => {
                   setLocationFilter(tempFilters.location);
                   setShowFilterModal(false);
                 }}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md"
+                className="px-4 py-2 bg-blue-600 text-white rounded-md cursor-pointer"
               >
                 Apply Filters
               </button>
