@@ -31,7 +31,7 @@ const EmptyRepo = () => {
   // Initial empty form data
   const [formData, setFormData] = useState({
     id: undefined,
-    date: '',
+    date: new Date().toISOString().split('T')[0],
     jobNumber: '',
     houseBL: '',
     shippingTerm: 'CY-CY',
@@ -64,7 +64,13 @@ const EmptyRepo = () => {
   const fetchEmptyRepoJobs = async () => {
     try {
       const res = await axios.get('http://localhost:8000/empty-repo-job');
-      setEmptyRepoJobs(res.data);
+      // Sort by creation date in descending order (latest first)
+      const sortedData = res.data.sort((a: any, b: any) => {
+        const dateA = new Date(a.createdAt || a.date || 0);
+        const dateB = new Date(b.createdAt || b.date || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      setEmptyRepoJobs(sortedData);
     } catch (err) {
       console.error('Failed to fetch empty repo jobs', err);
     }
@@ -219,7 +225,7 @@ const EmptyRepo = () => {
             
             setFormData({
               id: undefined,
-              date: '',
+              date: new Date().toISOString().split('T')[0],
               jobNumber: '',
               houseBL: '',
               shippingTerm: 'CY-CY',

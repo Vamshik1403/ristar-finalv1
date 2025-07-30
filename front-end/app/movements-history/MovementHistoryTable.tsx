@@ -65,7 +65,15 @@ const MovementHistoryTable = () => {
   };
 
   useEffect(() => {
-    axios.get("http://localhost:8000/movement-history/latest").then((res) => setData(res.data));
+    axios.get("http://localhost:8000/movement-history/latest").then((res) => {
+      // Sort by date in descending order (latest first)
+      const sortedData = res.data.sort((a: any, b: any) => {
+        const dateA = new Date(a.date || a.createdAt || 0);
+        const dateB = new Date(b.date || b.createdAt || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      setData(sortedData);
+    });
     axios.get("http://localhost:8000/ports").then((res) => setPorts(res.data));
   }, []);
 
@@ -92,6 +100,32 @@ const MovementHistoryTable = () => {
 
   const uniqueJobNumbers = getUniqueJobNumbers();
   const canSelectAll = uniqueJobNumbers.length === 1 && filteredData.length > 0;
+
+  // Calculate status counts for all data (not just filtered)
+  const getStatusCounts = () => {
+    const statusCounts: Record<string, number> = {};
+    
+    // Define all possible statuses to ensure they appear even with 0 count
+    const allStatuses = [
+      'ALLOTTED', 'EMPTY PICKED UP', 'LADEN GATE-IN', 'SOB', 
+      'GATE-OUT', 'EMPTY RETURNED', 'AVAILABLE', 'UNAVAILABLE'
+    ];
+    
+    // Initialize all statuses with 0
+    allStatuses.forEach(status => {
+      statusCounts[status] = 0;
+    });
+    
+    // Count actual occurrences
+    data.forEach(row => {
+      const status = row.status || 'UNKNOWN';
+      statusCounts[status] = (statusCounts[status] || 0) + 1;
+    });
+    
+    return statusCounts;
+  };
+
+  const statusCounts = getStatusCounts();
 
   const handleSelectAll = () => {
     if (!canSelectAll) return;
@@ -268,7 +302,44 @@ const MovementHistoryTable = () => {
   };
 
   return (
-    <div className="p-6 bg-white dark:bg-neutral-950 text-gray-900 dark:text-white min-h-screen">
+    <div className="p-6 my-0 bg-white dark:bg-neutral-950 text-gray-900 dark:text-white min-h-screen mb-6">
+
+    
+      {/* Status Count Display - Moved higher up to marked space */}
+      <div className="mb-4">
+        {/* Status Cards with Total Records at the start */}
+        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 gap-1">
+          {/* Total Records Card - First position */}
+          <div className="inline-flex items-center gap-1.5 px-2 py-0.5 bg-gradient-to-r from-blue-400 to-blue-500 
+                         text-white rounded-md shadow-sm hover:shadow-md transition-all duration-300 transform hover:scale-105">
+            <div className="w-1 h-1 bg-white rounded-full animate-pulse"></div>
+            <span className="text-[10px] font-medium">Total:</span>
+            <span className="text-xs font-bold">{data.length}</span>
+          </div>
+          
+                     {/* Status Cards - Much smaller height, wider width */}
+           {Object.entries(statusCounts).map(([status, count]) => (
+             <div
+               key={status}
+               className="rounded-md p-0.5 shadow-sm hover:shadow-md 
+                          transition-all duration-300 transform hover:scale-105 cursor-pointer
+                          bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-800/20 dark:to-blue-700/20 
+                          border border-blue-200 dark:border-blue-600 hover:from-blue-100 hover:to-blue-200"
+             >
+               <div className="text-center">
+                 <div className="text-[10px] font-bold mb-0.5 text-blue-600 dark:text-blue-400">
+                   {count}
+                 </div>
+                 <div className="text-[7px] font-medium uppercase tracking-wide leading-tight text-blue-500 dark:text-blue-300">
+                   {status.replace(/\s+/g, '\n')}
+                 </div>
+               </div>
+             </div>
+           ))}
+        </div>
+      </div>
+
+      
       <div className="flex flex-wrap items-center gap-4 mb-6">
         <input
           type="text"
@@ -311,11 +382,16 @@ const MovementHistoryTable = () => {
         <button
           onClick={handleUpdateStatusClick}
           disabled={selectedIds.length === 0}
-          className="bg-orange-600 hover:bg-orange-700 text-white font-semibold px-5 py-2 rounded-md disabled:opacity-50 cursor-pointer"
+          className={`font-semibold px-5 py-2 rounded-md transition-all duration-200 ${
+            selectedIds.length > 0 
+              ? 'bg-orange-600 hover:bg-orange-700 text-white cursor-pointer shadow-lg hover:shadow-xl' 
+              : 'bg-gray-400 text-gray-200 cursor-not-allowed opacity-50'
+          }`}
         >
-          Update Status
+          Update Status {selectedIds.length > 0 && `(${selectedIds.length})`}
         </button>
       </div>
+
 
       <div className="overflow-x-auto rounded-lg border border-neutral-700">
         <table className="w-full text-sm bg-white dark:bg-neutral-900">
@@ -323,15 +399,28 @@ const MovementHistoryTable = () => {
             <tr>
               <th className="p-3 text-center">
                 {canSelectAll ? (
-                  <div className="flex flex-col items-center gap-1">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.length === filteredData.length && filteredData.length > 0}
-                      onChange={selectedIds.length === filteredData.length ? handleDeselectAll : handleSelectAll}
-                      className="w-4 h-4 text-orange-500 bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 rounded focus:ring-orange-500"
-                      title="Select All"
-                    />
-                    <span className="text-xs text-gray-500">All</span>
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="flex gap-1">
+                      <button
+                        onClick={handleSelectAll}
+                        disabled={selectedIds.length === filteredData.length && filteredData.length > 0}
+                        className="px-2 py-1 text-xs bg-orange-500 hover:bg-orange-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors font-medium"
+                        title="Select All"
+                      >
+                        Select All
+                      </button>
+                      <button
+                        onClick={handleDeselectAll}
+                        disabled={selectedIds.length === 0}
+                        className="px-2 py-1 text-xs bg-gray-500 hover:bg-gray-600 text-white rounded-md disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer transition-colors font-medium"
+                        title="Deselect All"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                    <span className="text-xs text-gray-500">
+                      {selectedIds.length > 0 ? `${selectedIds.length}/${filteredData.length} selected` : `${filteredData.length} items`}
+                    </span>
                   </div>
                 ) : (
                   <span className="text-gray-400">Select</span>
@@ -350,13 +439,15 @@ const MovementHistoryTable = () => {
           </thead>
           <tbody>
             {filteredData.map((row) => (
-              <tr key={row.id} className="border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-900 dark:text-white">
+              <tr key={row.id} className={`border-t border-gray-200 dark:border-neutral-700 hover:bg-gray-100 dark:hover:bg-neutral-800 text-gray-900 dark:text-white transition-colors ${
+                selectedIds.includes(row.id) ? 'bg-orange-50 dark:bg-orange-900/20' : ''
+              }`}>
                 <td className="text-center p-2">
                   <input
                     type="checkbox"
                     checked={selectedIds.includes(row.id)}
                     onChange={() => toggleSelectRow(row)}
-                    className="w-4 h-4 text-orange-500 bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 rounded focus:ring-orange-500"
+                    className="w-4 h-4 text-orange-500 bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 rounded focus:ring-orange-500 cursor-pointer transition-colors hover:border-orange-400"
                   />
                 </td>
                 <td className="p-2">{new Date(row.date).toLocaleDateString()}</td>

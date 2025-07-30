@@ -1503,7 +1503,7 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
               <thead>
                 <tr>
                   <th className="text-left text-neutral-400 text-xs font-medium pb-2 w-[120px]">Leasing Ref. No</th>
-                  <th className="text-left text-neutral-400 text-xs font-medium pb-2 w-[120px]">Leasor Name</th>
+                  <th className="text-left text-neutral-400 text-xs font-medium pb-2 w-[120px]">Lessor Name</th>
                   <th className="text-left text-neutral-400 text-xs font-medium pb-2 w-[100px]">On Hire Date</th>
                   <th className="text-left text-neutral-400 text-xs font-medium pb-2 w-[120px]">On Hire Location</th>
                   <th className="text-left text-neutral-400 text-xs font-medium pb-2 w-[120px]">On Hire Depot</th>

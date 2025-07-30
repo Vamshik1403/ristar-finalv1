@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from "react";
 import axios from "axios";
 import AddCompanyForm from "./AddCompanyForm";
-import { Search, Pencil, Trash2 } from "lucide-react";
+import ViewAddressBookModal from "./ViewAddressBookModal";
+import { Search, Pencil, Trash2, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -65,6 +66,8 @@ const AddressBook = () => {
   const [error, setError] = useState("");
   const [showEditModal, setShowEditModal] = useState(false);
   const [companyToEdit, setCompanyToEdit] = useState<any>(null);
+  const [showViewModal, setShowViewModal] = useState(false);
+  const [companyToView, setCompanyToView] = useState<any>(null);
   const [searchTerm, setSearchTerm] = useState("");
   // Filter state
   const [showFilter, setShowFilter] = useState(false);
@@ -74,7 +77,14 @@ const AddressBook = () => {
   // Unique options for filter dropdowns
   const businessTypeOptions = Array.from(new Set(companies.flatMap((c: any) => c.businessType?.split(/,\s*/) || []))).filter(Boolean);
   const countryOptions = Array.from(new Set(companies.map((c: any) => c.country?.countryName).filter(Boolean)));
-  const portOptions = Array.from(new Set(companies.flatMap((c: any) => (c.businessPorts || []).map((bp: any) => bp.port?.portName)).filter(Boolean)));
+  
+  // Filter ports based on selected country
+  const portOptions = Array.from(new Set(
+    companies
+      .filter((c: any) => !filterCountry || c.country?.countryName === filterCountry)
+      .flatMap((c: any) => (c.businessPorts || []).map((bp: any) => bp.port?.portName))
+      .filter(Boolean)
+  ));
 
   const fetchCompanies = async () => {
     try {
@@ -109,6 +119,16 @@ const AddressBook = () => {
       const res = await axios.get(`http://localhost:8000/addressbook/${id}`);
       setCompanyToEdit(res.data);
       setShowEditModal(true);
+    } catch (err) {
+      console.error("Failed to fetch company", err);
+    }
+  };
+
+  const handleViewClick = async (id: number) => {
+    try {
+      const res = await axios.get(`http://localhost:8000/addressbook/${id}`);
+      setCompanyToView(res.data);
+      setShowViewModal(true);
     } catch (err) {
       console.error("Failed to fetch company", err);
     }
@@ -190,7 +210,11 @@ const AddressBook = () => {
               <label className="block text-xs font-semibold text-gray-900 dark:text-white mb-1">Country</label>
               <select
                 value={filterCountry}
-                onChange={e => setFilterCountry(e.target.value)}
+                onChange={e => {
+                  setFilterCountry(e.target.value);
+                  // Reset port filter when country changes since available ports will change
+                  setFilterPort("");
+                }}
                 className="w-full p-2 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
               >
                 <option value="">All Countries</option>
@@ -207,9 +231,15 @@ const AddressBook = () => {
                 className="w-full p-2 bg-white dark:bg-neutral-800 text-gray-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
               >
                 <option value="">All Ports</option>
-                {portOptions.map((port) => (
-                  <option key={port} value={port}>{port}</option>
-                ))}
+                {portOptions.length > 0 ? (
+                  portOptions.map((port) => (
+                    <option key={port} value={port}>{port}</option>
+                  ))
+                ) : (
+                  <option value="" disabled>
+                    {filterCountry ? `No ports available for ${filterCountry}` : "Select a country first"}
+                  </option>
+                )}
               </select>
             </div>
             <div className="flex justify-end gap-2 mt-2">
@@ -305,28 +335,46 @@ const AddressBook = () => {
                     <StatusBadge status={company.status} />
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleEditClick(company.id)}
-                      className={cn(
-                        "h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer dark:hover:bg-blue-900/40"
-                      )}
-                      title="Edit"
-                    >
-                      <Pencil size={18} />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(company.id)}
-                      className={cn(
-                        "h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer dark:hover:bg-red-900/40"
-                      )}
-                      title="Delete"
-                    >
-                      <Trash2 size={18} />
-                    </Button>
+                    <div className="flex justify-center gap-2">
+                      {/* View button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleViewClick(company.id)}
+                        className={cn(
+                          "h-8 w-8 text-purple-400 hover:text-purple-300 hover:bg-purple-900/40 cursor-pointer dark:hover:bg-purple-900/40"
+                        )}
+                        title="View Details"
+                      >
+                        <Eye size={16} />
+                      </Button>
+
+                      {/* Edit button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditClick(company.id)}
+                        className={cn(
+                          "h-8 w-8 text-blue-400 hover:text-blue-300 hover:bg-blue-900/40 cursor-pointer dark:hover:bg-blue-900/40"
+                        )}
+                        title="Edit"
+                      >
+                        <Pencil size={16} />
+                      </Button>
+
+                      {/* Delete button */}
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(company.id)}
+                        className={cn(
+                          "h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/40 cursor-pointer dark:hover:bg-red-900/40"
+                        )}
+                        title="Delete"
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
@@ -336,6 +384,20 @@ const AddressBook = () => {
       </div>
 
       {/* Modals */}
+      {showViewModal && companyToView && (
+        <ViewAddressBookModal
+          addressBook={companyToView}
+          onClose={() => {
+            setShowViewModal(false);
+            setCompanyToView(null);
+          }}
+          onEdit={() => {
+            setShowViewModal(false);
+            setCompanyToEdit(companyToView);
+            setShowEditModal(true);
+          }}
+        />
+      )}
       {showEditModal && (
         <AddCompanyForm
           editData={companyToEdit}

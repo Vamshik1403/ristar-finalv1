@@ -35,7 +35,7 @@ const AllShipmentsPage = () => {
     referenceNumber: '',
     masterBL: '',
     shippingTerm: '',
-    date: '',
+    date: new Date().toISOString().split('T')[0],
     jobNumber: '',
 
     // Customer/Company fields
@@ -106,19 +106,76 @@ const AllShipmentsPage = () => {
   const fetchShipments = async () => {
     try {
       const res = await axios.get('http://localhost:8000/shipment');
-      setShipments(res.data);
+      
+      // Enhanced sorting with better date handling and fallback to ID
+      const sortedData = res.data.sort((a: any, b: any) => {
+        // Try to get valid dates from multiple possible fields
+        const getValidDate = (item: any) => {
+          const dateFields = ['date', 'createdAt', 'updatedAt'];
+          for (const field of dateFields) {
+            if (item[field]) {
+              const date = new Date(item[field]);
+              if (!isNaN(date.getTime())) {
+                return date;
+              }
+            }
+          }
+          return new Date(0); // Fallback to epoch if no valid date
+        };
+
+        const dateA = getValidDate(a);
+        const dateB = getValidDate(b);
+
+        // First sort by date (descending)
+        const dateComparison = dateB.getTime() - dateA.getTime();
+        if (dateComparison !== 0) {
+          return dateComparison;
+        }
+
+        // If dates are equal, sort by job number (descending) as secondary sort
+        if (a.jobNumber && b.jobNumber) {
+          // Extract numeric part from job number (e.g., "25/00005" -> 5)
+          const getJobNumber = (jobNumber: string) => {
+            const match = jobNumber.match(/\/(\d+)$/);
+            return match ? parseInt(match[1]) : 0;
+          };
+          
+          const jobNumA = getJobNumber(a.jobNumber);
+          const jobNumB = getJobNumber(b.jobNumber);
+          
+          if (jobNumA !== jobNumB) {
+            return jobNumB - jobNumA; // Descending order
+          }
+        }
+        
+        // If job numbers are equal or don't exist, sort by ID (descending) as final fallback
+        return (b.id || 0) - (a.id || 0);
+      });
+
+      // Debug: Log the raw data first, then sorted data
+      console.log('Raw shipments data:', res.data.map((s: any) => ({ 
+        id: s.id, 
+        date: s.date, 
+        jobNumber: s.jobNumber,
+        createdAt: s.createdAt,
+        updatedAt: s.updatedAt
+      })));
+
+      console.log('Sorted shipments:', sortedData.map((s: any) => ({ 
+        id: s.id, 
+        date: s.date, 
+        jobNumber: s.jobNumber,
+        formattedDate: new Date(s.date).toLocaleDateString()
+      })));
+
+      setShipments(sortedData);
     } catch (err) {
       console.error('Failed to fetch shipments', err);
     }
   };
 
   useEffect(() => {
-    // Fetch once and log the raw response
-    axios.get('http://localhost:8000/shipment')
-      .then(res => {
-        setShipments(res.data);
-      })
-      .catch(err => console.error('Failed to fetch shipments', err));
+    fetchShipments();
   }, []);
 
   const handleDelete = async (id: number) => {
@@ -297,7 +354,7 @@ const AllShipmentsPage = () => {
               referenceNumber: '',
               masterBL: '',
               shippingTerm: '',
-              date: '',
+              date: new Date().toISOString().split('T')[0],
               jobNumber: '',
 
               // Customer/Company fields

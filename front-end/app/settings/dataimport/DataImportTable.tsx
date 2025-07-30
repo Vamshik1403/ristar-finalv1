@@ -714,13 +714,37 @@ const DataImportTable = () => {
           successCount.value++;
         } catch (error: any) {
           failedCount.value++;
-          const errorMessage = error.response?.data?.message || error.message || "Unknown error";
-          const detailedError = error.response?.data?.error || "";
+          
+          // Enhanced error message extraction
+          let errorMessage = "Unknown error";
+          let detailedError = "";
+          
+          if (error.response?.data) {
+            // Handle different error response formats
+            if (error.response.data.message) {
+              errorMessage = error.response.data.message;
+            } else if (error.response.data.error) {
+              errorMessage = error.response.data.error;
+            } else if (typeof error.response.data === 'string') {
+              errorMessage = error.response.data;
+            }
+            
+            // Extract additional details if available
+            if (error.response.data.details) {
+              detailedError = error.response.data.details;
+            } else if (error.response.data.errors) {
+              detailedError = Array.isArray(error.response.data.errors) 
+                ? error.response.data.errors.join(', ')
+                : JSON.stringify(error.response.data.errors);
+            }
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
           const fullErrorMessage = detailedError 
             ? `${errorMessage} - Details: ${detailedError}` 
             : errorMessage;
           errors.push(`Row ${i+1} (Company: ${row["Company Name"] || "Unknown"}): ${fullErrorMessage}`);
-          console.error(`Company import error for row ${i+1}:`, error);
         }
       }
       
@@ -740,16 +764,40 @@ const DataImportTable = () => {
         setImportStatus("success");
         toast.success(`${successCount.value} companies imported successfully`);
       }
-    } catch (error: any) {
-      setImportStatus("error");
-      const errorMessage = error.response?.data?.message || error.message || "Unknown error";
-      const detailedError = error.response?.data?.error || "";
-      const fullErrorMessage = detailedError 
-        ? `${errorMessage} - Details: ${detailedError}` 
-        : errorMessage;
-      setErrorMessages([`General company import error: ${fullErrorMessage}`]);
-      console.error("Company import general error:", error);
-    }
+            } catch (error: any) {
+          setImportStatus("error");
+          
+          // Enhanced error message extraction
+          let errorMessage = "Unknown error";
+          let detailedError = "";
+          
+          if (error.response?.data) {
+            // Handle different error response formats
+            if (error.response.data.message) {
+              errorMessage = error.response.data.message;
+            } else if (error.response.data.error) {
+              errorMessage = error.response.data.error;
+            } else if (typeof error.response.data === 'string') {
+              errorMessage = error.response.data;
+            }
+            
+            // Extract additional details if available
+            if (error.response.data.details) {
+              detailedError = error.response.data.details;
+            } else if (error.response.data.errors) {
+              detailedError = Array.isArray(error.response.data.errors) 
+                ? error.response.data.errors.join(', ')
+                : JSON.stringify(error.response.data.errors);
+            }
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
+          const fullErrorMessage = detailedError 
+            ? `${errorMessage} - Details: ${detailedError}` 
+            : errorMessage;
+          setErrorMessages([`General company import error: ${fullErrorMessage}`]);
+        }
   };
 
   // Process port import data
@@ -890,13 +938,37 @@ const DataImportTable = () => {
           successCount.value++;
         } catch (error: any) {
           failedCount.value++;
-          const errorMessage = error.response?.data?.message || error.message || "Unknown error";
-          const detailedError = error.response?.data?.error || "";
+          
+          // Enhanced error message extraction
+          let errorMessage = "Unknown error";
+          let detailedError = "";
+          
+          if (error.response?.data) {
+            // Handle different error response formats
+            if (error.response.data.message) {
+              errorMessage = error.response.data.message;
+            } else if (error.response.data.error) {
+              errorMessage = error.response.data.error;
+            } else if (typeof error.response.data === 'string') {
+              errorMessage = error.response.data;
+            }
+            
+            // Extract additional details if available
+            if (error.response.data.details) {
+              detailedError = error.response.data.details;
+            } else if (error.response.data.errors) {
+              detailedError = Array.isArray(error.response.data.errors) 
+                ? error.response.data.errors.join(', ')
+                : JSON.stringify(error.response.data.errors);
+            }
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
           const fullErrorMessage = detailedError 
             ? `${errorMessage} - Details: ${detailedError}` 
             : errorMessage;
           errors.push(`Row ${i+1} (Port: ${row["PORT_Name"] || "Unknown"}): ${fullErrorMessage}`);
-          console.error(`Port import error for row ${i+1}:`, error);
         }
       }
       
@@ -918,13 +990,37 @@ const DataImportTable = () => {
       }
     } catch (error: any) {
       setImportStatus("error");
-      const errorMessage = error.response?.data?.message || error.message || "Unknown error";
-      const detailedError = error.response?.data?.error || "";
+      
+      // Enhanced error message extraction
+      let errorMessage = "Unknown error";
+      let detailedError = "";
+      
+      if (error.response?.data) {
+        // Handle different error response formats
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        }
+        
+        // Extract additional details if available
+        if (error.response.data.details) {
+          detailedError = error.response.data.details;
+        } else if (error.response.data.errors) {
+          detailedError = Array.isArray(error.response.data.errors) 
+            ? error.response.data.errors.join(', ')
+            : JSON.stringify(error.response.data.errors);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       const fullErrorMessage = detailedError 
         ? `${errorMessage} - Details: ${detailedError}` 
         : errorMessage;
       setErrorMessages([`General port import error: ${fullErrorMessage}`]);
-      console.error("Port import general error:", error);
     }
   };
 
@@ -1292,7 +1388,7 @@ const DataImportTable = () => {
               inventoryPayload.leasingInfo.push({
                 ownershipType: "Own",
                 leasingRefNo: row["Lease Ref No"] || `OWN-${row["Container Number"]}`,
-                lessoraddressbookId: depotId,
+                leasoraddressbookId: depotId,
                 onHireDepotaddressbookId: depotId,
                 portId: portId,
                 onHireDate: onHireDate,
@@ -1398,7 +1494,7 @@ const DataImportTable = () => {
               inventoryPayload.leasingInfo.push({
                 ownershipType: "Leased", // Backend expects "Leased" not "Lease"
                 leasingRefNo: row["Lease Ref No"] || `LEASE-${row["Container Number"]}`,
-                lessoraddressbookId: lessorId,
+                leasoraddressbookId: lessorId,
                 onHireDepotaddressbookId: depotId,
                 portId: portId,
                 onHireDate: onHireDate,
@@ -1452,7 +1548,9 @@ const DataImportTable = () => {
           );
           
           if (duplicateContainer) {
-            throw new Error(`Container with number "${inventoryPayload.containerNumber}" already exists match with "${duplicateContainer.containerNumber}")`);
+            failedCount.value++;
+            errors.push(`Row ${rowNumber} (${row["Container Number"]}): Container with number "${inventoryPayload.containerNumber}" already exists`);
+            continue; // Skip this row and continue with the next one
           }
 
           // Step 3: Submit the complete inventory payload
@@ -1487,7 +1585,7 @@ const DataImportTable = () => {
                   await axios.post('http://localhost:8000/leasinginfo', {
                     ownershipType: 'Own',
                     leasingRefNo: row["Lease Ref No"] || `OWN-${row["Container Number"]}`,
-                    lessoraddressbookId: depotId,
+                    leasoraddressbookId: depotId,
                     onHireDepotaddressbookId: depotId,
                     portId: portId,
                     onHireDate: onHireDate,
@@ -1505,18 +1603,71 @@ const DataImportTable = () => {
             }
           } catch (error: any) {
             failedCount.value++;
-            const errorMessage = error.response?.data?.message || error.message;
-            errors.push(`Row ${rowNumber} (${row["Container Number"]}): ${errorMessage}`);
+            
+            // Enhanced error message extraction
+            let errorMessage = "Unknown error";
+            let detailedError = "";
+            
+            if (error.response?.data) {
+              // Handle different error response formats
+              if (error.response.data.message) {
+                errorMessage = error.response.data.message;
+              } else if (error.response.data.error) {
+                errorMessage = error.response.data.error;
+              } else if (typeof error.response.data === 'string') {
+                errorMessage = error.response.data;
+              }
+              
+              // Extract additional details if available
+              if (error.response.data.details) {
+                detailedError = error.response.data.details;
+              } else if (error.response.data.errors) {
+                detailedError = Array.isArray(error.response.data.errors) 
+                  ? error.response.data.errors.join(', ')
+                  : JSON.stringify(error.response.data.errors);
+              }
+            } else if (error.message) {
+              errorMessage = error.message;
+            }
+            
+            const fullErrorMessage = detailedError 
+              ? `${errorMessage} - Details: ${detailedError}` 
+              : errorMessage;
+            errors.push(`Row ${rowNumber} (${row["Container Number"]}): ${fullErrorMessage}`);
           }
         } catch (error: any) {
           failedCount.value++;
-          const errorMessage = error.response?.data?.message || error.message || "Unknown error";
-          const detailedError = error.response?.data?.error || "";
+          
+          // Enhanced error message extraction
+          let errorMessage = "Unknown error";
+          let detailedError = "";
+          
+          if (error.response?.data) {
+            // Handle different error response formats
+            if (error.response.data.message) {
+              errorMessage = error.response.data.message;
+            } else if (error.response.data.error) {
+              errorMessage = error.response.data.error;
+            } else if (typeof error.response.data === 'string') {
+              errorMessage = error.response.data;
+            }
+            
+            // Extract additional details if available
+            if (error.response.data.details) {
+              detailedError = error.response.data.details;
+            } else if (error.response.data.errors) {
+              detailedError = Array.isArray(error.response.data.errors) 
+                ? error.response.data.errors.join(', ')
+                : JSON.stringify(error.response.data.errors);
+            }
+          } else if (error.message) {
+            errorMessage = error.message;
+          }
+          
           const fullErrorMessage = detailedError 
             ? `${errorMessage} - Details: ${detailedError}` 
             : errorMessage;
           errors.push(`Row ${rowNumber} (Container: ${row["Container Number"] || "Unknown"}): ${fullErrorMessage}`);
-          console.error(`Container import error for row ${rowNumber}:`, error);
         }
       }
       
@@ -1545,13 +1696,37 @@ const DataImportTable = () => {
       }
     } catch (error: any) {
       setImportStatus("error");
-      const errorMessage = error.response?.data?.message || error.message || "Unknown error";
-      const detailedError = error.response?.data?.error || "";
+      
+      // Enhanced error message extraction
+      let errorMessage = "Unknown error";
+      let detailedError = "";
+      
+      if (error.response?.data) {
+        // Handle different error response formats
+        if (error.response.data.message) {
+          errorMessage = error.response.data.message;
+        } else if (error.response.data.error) {
+          errorMessage = error.response.data.error;
+        } else if (typeof error.response.data === 'string') {
+          errorMessage = error.response.data;
+        }
+        
+        // Extract additional details if available
+        if (error.response.data.details) {
+          detailedError = error.response.data.details;
+        } else if (error.response.data.errors) {
+          detailedError = Array.isArray(error.response.data.errors) 
+            ? error.response.data.errors.join(', ')
+            : JSON.stringify(error.response.data.errors);
+        }
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       const fullErrorMessage = detailedError 
         ? `${errorMessage} - Details: ${detailedError}` 
         : errorMessage;
       setErrorMessages([`General container import error: ${fullErrorMessage}`]);
-      console.error("Container import general error:", error);
     }
   };
 

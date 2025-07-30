@@ -31,7 +31,13 @@ const QuotationPage = () => {
     try {
       const res = await fetch('http://localhost:8000/quotations');
       const data = await res.json();
-      setQuotations(data);
+      // Sort by creation date in descending order (latest first)
+      const sortedData = data.sort((a: any, b: any) => {
+        const dateA = new Date(a.createdAt || a.effectiveDate || 0);
+        const dateB = new Date(b.createdAt || b.effectiveDate || 0);
+        return dateB.getTime() - dateA.getTime();
+      });
+      setQuotations(sortedData);
     } catch (error) {
       console.error('Failed to fetch quotations:', error);
     }
@@ -351,6 +357,7 @@ const QuotationPage = () => {
            <TableRow>
               {[
                 'Quote Ref.',
+                'createdAt',
                 'Effective',
                 'Valid Till',
                 'Customer',
@@ -375,6 +382,17 @@ const QuotationPage = () => {
             {quotations.map((q) => (
               <TableRow key={q.id} className="border-b border-neutral-200 dark:border-neutral-800 text-black dark:text-white bg-white dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition">
                <TableCell className="text-center">{q.quotationRefNumber}</TableCell>
+               <TableCell className="text-center">
+                 {q.createdAt ? new Date(q.createdAt).toLocaleString('en-US', {
+                   year: 'numeric',
+                   month: '2-digit',
+                   day: '2-digit',
+                   hour: '2-digit',
+                   minute: '2-digit',
+                   second: '2-digit',
+                   hour12: false
+                 }) : '-'}
+               </TableCell>
                 <TableCell className="text-center">{q.effectiveDate?.split('T')[0]}</TableCell>
                 <TableCell className="text-center">{q.validTillDate?.split('T')[0]}</TableCell>
                 <TableCell className="text-center">{q.custAddressBook?.companyName}</TableCell>
