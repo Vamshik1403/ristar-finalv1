@@ -20,8 +20,8 @@ interface MovementRow {
 
 const statusTransitions: Record<string, string[]> = {
   ALLOTTED: ["Empty Picked Up"],
-  "EMPTY PICKED UP": ["Gate-In"],
-  "GATE-IN": ["SoB"],
+  "EMPTY PICKED UP": ["LADEN GATE-IN"],
+  "LADEN GATE-IN": ["SoB"],
   SOB: ["Gate-Out"],
   "GATE-OUT": ["Empty Returned"],
   "EMPTY RETURNED": ["AVAILABLE", "UNAVAILABLE"],
@@ -50,6 +50,8 @@ const MovementHistoryTable = () => {
   const [tempFilters, setTempFilters] = useState({ status: "", port: "", location: "" });
   const [showHistoryModal, setShowHistoryModal] = useState(false);
   const [selectedContainerNumber, setSelectedContainerNumber] = useState<string | null>(null);
+  const [availableLocations, setAvailableLocations] = useState<any[]>([]);
+  const [ports, setPorts] = useState<any[]>([]);
 
   const openEditDateModal = (row: MovementRow) => {
     setEditingRow(row);
@@ -64,6 +66,7 @@ const MovementHistoryTable = () => {
 
   useEffect(() => {
     axios.get("http://localhost:8000/movement-history/latest").then((res) => setData(res.data));
+    axios.get("http://localhost:8000/ports").then((res) => setPorts(res.data));
   }, []);
 
   const filteredData = data.filter((row) => {
@@ -76,6 +79,36 @@ const MovementHistoryTable = () => {
     const locationMatch = !locationFilter || row.addressBook?.companyName === locationFilter;
     return (!containerSearch || containerMatch) && (!jobSearch || jobMatch) && statusMatch && portMatch && locationMatch;
   });
+
+  // Check if all filtered records have the same job number
+  const getUniqueJobNumbers = () => {
+    const jobNumbers = new Set<string>();
+    filteredData.forEach(row => {
+      const jobNumber = row.shipment?.jobNumber || row.emptyRepoJob?.jobNumber;
+      if (jobNumber) jobNumbers.add(jobNumber);
+    });
+    return Array.from(jobNumbers);
+  };
+
+  const uniqueJobNumbers = getUniqueJobNumbers();
+  const canSelectAll = uniqueJobNumbers.length === 1 && filteredData.length > 0;
+
+  const handleSelectAll = () => {
+    if (!canSelectAll) return;
+    
+    const jobNumber = uniqueJobNumbers[0];
+    const recordsWithSameJob = filteredData.filter(row => {
+      const rowJobNumber = row.shipment?.jobNumber || row.emptyRepoJob?.jobNumber;
+      return rowJobNumber === jobNumber;
+    });
+    
+    const recordIds = recordsWithSameJob.map(row => row.id);
+    setSelectedIds(recordIds);
+  };
+
+  const handleDeselectAll = () => {
+    setSelectedIds([]);
+  };
 
   const toggleSelectRow = (row: MovementRow) => {
     const sameJob = data.find((d) => selectedIds.includes(d.id));
@@ -112,6 +145,31 @@ const MovementHistoryTable = () => {
     setModalOpen(true);
   };
 
+  // Fetch locations by port
+  const fetchLocationsByPort = async (portId: number) => {
+    try {
+      const res = await axios.get(`http://localhost:8000/addressbook/locations-by-port/${portId}`);
+      setAvailableLocations(res.data);
+    } catch (error) {
+      console.error("Error fetching locations by port:", error);
+      setAvailableLocations([]);
+    }
+  };
+
+  // Handle port filter change
+  const handlePortFilterChange = (portName: string) => {
+    setTempFilters(prev => ({ ...prev, port: portName, location: "" }));
+    
+    if (portName) {
+      const selectedPort = ports.find(p => p.portName === portName);
+      if (selectedPort) {
+        fetchLocationsByPort(selectedPort.id);
+      }
+    } else {
+      setAvailableLocations([]);
+    }
+  };
+
   const handleBulkUpdate = async () => {
     if (!newStatus) {
       alert("Please select a new status.");
@@ -136,7 +194,7 @@ const MovementHistoryTable = () => {
       switch (newStatus.toUpperCase()) {
         case "EMPTY PICKED UP":
           break;
-        case "GATE-IN":
+        case "LADEN GATE-IN":
           portId = source?.polPortId;
           addressBookId = null;
           break;
@@ -227,7 +285,16 @@ const MovementHistoryTable = () => {
           className="flex-1 min-w-[220px] bg-white dark:bg-neutral-800 text-gray-900 dark:text-white px-4 py-2 rounded-md border border-gray-300 dark:border-neutral-700 placeholder-gray-400 dark:placeholder-neutral-400 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
         <button
-          onClick={() => setShowFilterModal(true)}
+          onClick={() => {
+            setTempFilters({ status: statusFilter, port: portFilter, location: locationFilter });
+            if (portFilter) {
+              const selectedPort = ports.find(p => p.portName === portFilter);
+              if (selectedPort) {
+                fetchLocationsByPort(selectedPort.id);
+              }
+            }
+            setShowFilterModal(true);
+          }}
           className="flex items-center gap-2 px-4 py-2 cursor-pointer rounded-lg transition-colors
             bg-gray-100 dark:bg-neutral-700
             border border-gray-300 dark:border-neutral-600
@@ -254,7 +321,22 @@ const MovementHistoryTable = () => {
         <table className="w-full text-sm bg-white dark:bg-neutral-900">
           <thead className="bg-white dark:bg-neutral-900 text-left text-gray-900 dark:text-neutral-300">
             <tr>
-              <th className="p-3 text-center">Select</th>
+              <th className="p-3 text-center">
+                {canSelectAll ? (
+                  <div className="flex flex-col items-center gap-1">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.length === filteredData.length && filteredData.length > 0}
+                      onChange={selectedIds.length === filteredData.length ? handleDeselectAll : handleSelectAll}
+                      className="w-4 h-4 text-orange-500 bg-white dark:bg-neutral-800 border-gray-300 dark:border-neutral-600 rounded focus:ring-orange-500"
+                      title="Select All"
+                    />
+                    <span className="text-xs text-gray-500">All</span>
+                  </div>
+                ) : (
+                  <span className="text-gray-400">Select</span>
+                )}
+              </th>
               <th className="p-3">Date</th>
               <th className="p-3">Container No</th>
               <th className="p-3">Job No.</th>
@@ -430,12 +512,12 @@ const MovementHistoryTable = () => {
                 <label className="block text-sm font-medium text-gray-900 dark:text-neutral-300 mb-2">Port</label>
                 <select
                   value={tempFilters.port}
-                  onChange={e => setTempFilters(prev => ({ ...prev, port: e.target.value }))}
+                  onChange={e => handlePortFilterChange(e.target.value)}
                   className="w-full px-3 py-2 bg-white dark:bg-neutral-700 text-black dark:text-white rounded border border-neutral-600 focus:border-blue-500 focus:outline-none"
                 >
                   <option value="">All Ports</option>
-                  {[...new Set(data.map(row => row.port?.portName))].filter(Boolean).map(port => (
-                    <option key={port} value={port}>{port}</option>
+                  {ports.map(port => (
+                    <option key={port.id} value={port.portName}>{port.portName}</option>
                   ))}
                 </select>
               </div>
@@ -445,10 +527,11 @@ const MovementHistoryTable = () => {
                   value={tempFilters.location}
                   onChange={e => setTempFilters(prev => ({ ...prev, location: e.target.value }))}
                   className="w-full px-3 py-2 bg-white dark:bg-neutral-700 text-black dark:text-white rounded border border-neutral-600 focus:border-blue-500 focus:outline-none"
+                  disabled={!tempFilters.port}
                 >
-                  <option value="">All Locations</option>
-                  {[...new Set(data.map(row => row.addressBook?.companyName))].filter(Boolean).map(loc => (
-                    <option key={loc} value={loc}>{loc}</option>
+                  <option value="">{tempFilters.port ? "All Locations" : "Select a port first"}</option>
+                  {availableLocations.map(loc => (
+                    <option key={loc.id} value={loc.companyName}>{loc.companyName}</option>
                   ))}
                 </select>
               </div>
@@ -460,6 +543,7 @@ const MovementHistoryTable = () => {
                   setStatusFilter("");
                   setPortFilter("");
                   setLocationFilter("");
+                  setAvailableLocations([]);
                   setShowFilterModal(false);
                 }}
                 className="px-4 py-2 bg-red-600 text-white rounded-md cursor-pointer"

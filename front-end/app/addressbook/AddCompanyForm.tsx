@@ -675,10 +675,10 @@ const AddCompanyForm = ({
                     "Shipper",
                     "Land Transport",
                     "Carrier",
-                    "Deport Terminal",
+                    "Depot Terminal",
                     "Consignee",
                     "Surveyor",
-                    "Leasor",
+                    "Lessor",
                     "CY Terminal"
                   ].map((type) => (
                     <label

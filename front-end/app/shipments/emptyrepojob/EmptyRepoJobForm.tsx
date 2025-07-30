@@ -471,7 +471,7 @@ const AddShipmentModal = ({
         const businessType = (entry.businessType || "").toLowerCase();
 
         const isDepotOrCY =
-          businessType.includes("deport terminal") ||
+          businessType.includes("depot terminal") ||
           businessType.includes("cy terminal");
 
         const linkedToPort =

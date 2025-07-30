@@ -111,7 +111,7 @@ let finalRemarks: string | null = remarks?.trim() || null;
         addressBookId = prev.addressBookId ?? null;
         break;
 
-      case 'GATE-IN':
+      case 'LADEN GATE-IN':
         portId = shipment?.polPortId ?? emptyRepoJob?.polPortId!;
         addressBookId = null;
         break;
@@ -214,7 +214,7 @@ async createNewStatusEntry(
   } | null;
 
   let shipment: ShipmentInfo = null;
-if (['GATE-IN', 'SOB', 'EMPTY RETURNED'].includes(newStatus.toUpperCase())) {
+if (['LADEN GATE-IN', 'SOB', 'EMPTY RETURNED'].includes(newStatus.toUpperCase())) {
   if (previous.shipmentId) {
     shipment = await this.prisma.shipment.findUnique({
       where: { id: previous.shipmentId },
@@ -247,7 +247,7 @@ if (['GATE-IN', 'SOB', 'EMPTY RETURNED'].includes(newStatus.toUpperCase())) {
     // Use previous portId and addressBookId
     portId = previous.portId;
     addressBookId = previous.addressBookId;
-  } else if (status === 'GATE-IN') {
+  } else if (status === 'LADEN GATE-IN') {
     portId = shipment?.polPortId ?? null;
     addressBookId = null;
   } else if (status === 'SOB') {

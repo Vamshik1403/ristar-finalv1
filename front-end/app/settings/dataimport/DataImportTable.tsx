@@ -58,7 +58,7 @@ const containerCSVHeaders = [
   "Initial Survey Date", // Added missing field that appears in form after Tare Wt
   "Ownership",
   "Lease Ref No", // Renamed from "LEASE REF"
-  "Leasor Name", // Moved next to Lease Ref No
+  "Lessor Name", // Moved next to Lease Ref No
   "On-Hire Date",
   "Onhire Location",
   "On Hire DEPOT",
@@ -310,7 +310,7 @@ const DataImportTable = () => {
       "Ownership": "ownership",
       "Lease Ref No": "leasingRefNo", // Updated from "LEASE REF"
       "LEASE REF": "leasingRefNo", // Keep for backward compatibility
-      "Leasor Name": "leasorName",
+      "Lessor Name": "lessorName",
       "On-Hire Date": "onHireDate",
       "Onhire Location": "onHireLocation",
       "On Hire DEPOT": "onHireDepotId",
@@ -409,10 +409,10 @@ const DataImportTable = () => {
       return `Invalid Ownership: ${ownership}. Must be either "Own" or "Lease" (case insensitive)`;
     }
     
-    // Additional validation for LEASE containers - Leasor Name field is MANDATORY
+    // Additional validation for LEASE containers - Lessor Name field is MANDATORY
     if (ownershipUpper === "LEASE") {
-      if (!row["Leasor Name"] || row["Leasor Name"].trim() === "") {
-        return `Leasor Name field is required for Lease container ${containerNumber}`;
+      if (!row["Lessor Name"] || row["Lessor Name"].trim() === "") {
+        return `Lessor Name field is required for Lease container ${containerNumber}`;
       }
     }
     
@@ -584,10 +584,10 @@ const DataImportTable = () => {
             "Shipper",
             "Land Transport",
             "Carrier",
-            "Deport Terminal",
+            "Depot Terminal",
             "Consignee",
             "Surveyor", 
-            "Leasor",
+            "Lessor",
             "CY Terminal"
           ];
 
@@ -1085,31 +1085,31 @@ const DataImportTable = () => {
     return generalMatch || null;
   };
 
-  const findLeasorByIdOrName = (addressBookData: any[], value: string): any | null => {
+  const findLessorByIdOrName = (addressBookData: any[], value: string): any | null => {
     if (!value || value.trim() === "") return null;
     
     const trimmedValue = value.trim();
     
     // First try to find by ID (if value is a number)
     if (!isNaN(Number(trimmedValue))) {
-      const leasorById = addressBookData.find((a: any) => a.id === Number(trimmedValue));
-      if (leasorById) return leasorById;
+      const lessorById = addressBookData.find((a: any) => a.id === Number(trimmedValue));
+      if (lessorById) return lessorById;
     }
     
     // Then try to find by company name (case insensitive)
-    // Prefer companies that have "Leasor" or "Owner" in business type
-    const leasorByName = addressBookData.find((a: any) => {
+    // Prefer companies that have "Lessor" or "Owner" in business type
+    const lessorByName = addressBookData.find((a: any) => {
       const nameMatches = a.companyName.toLowerCase().trim() === trimmedValue.toLowerCase();
-      const isLeasorType = a.businessType && 
-        (a.businessType.toLowerCase().includes("leasor") || 
+      const isLessorType = a.businessType && 
+        (a.businessType.toLowerCase().includes("lessor") || 
          a.businessType.toLowerCase().includes("owner") ||
          a.businessType.toLowerCase().includes("leasing"));
-      return nameMatches && isLeasorType;
+      return nameMatches && isLessorType;
     });
     
-    if (leasorByName) return leasorByName;
+    if (lessorByName) return lessorByName;
     
-    // If not found with leasor filter, try general name match
+    // If not found with lessor filter, try general name match
     const generalMatch = addressBookData.find(
       (a: any) => a.companyName.toLowerCase().trim() === trimmedValue.toLowerCase()
     );
@@ -1292,7 +1292,7 @@ const DataImportTable = () => {
               inventoryPayload.leasingInfo.push({
                 ownershipType: "Own",
                 leasingRefNo: row["Lease Ref No"] || `OWN-${row["Container Number"]}`,
-                leasoraddressbookId: depotId,
+                lessoraddressbookId: depotId,
                 onHireDepotaddressbookId: depotId,
                 portId: portId,
                 onHireDate: onHireDate,
@@ -1318,23 +1318,23 @@ const DataImportTable = () => {
             delete inventoryPayload.onHireDepotaddressbookId;
             
             // Create leasing info record for LEASED containers
-            let leasorId = null;
+            let lessorId = null;
             let portId = null;
             let depotId = null;
             
-            // Find leasor from Leasor Name column using enhanced lookup - REQUIRED for lease containers
-            if (row["Leasor Name"] && row["Leasor Name"].trim() !== "") {
-              const leasorValue = row["Leasor Name"].trim();
-              const leasor = findLeasorByIdOrName(addressBookEntries, leasorValue);
+            // Find lessor from Lessor Name column using enhanced lookup - REQUIRED for lease containers
+            if (row["Lessor Name"] && row["Lessor Name"].trim() !== "") {
+              const lessorValue = row["Lessor Name"].trim();
+              const lessor = findLessorByIdOrName(addressBookEntries, lessorValue);
               
-              if (leasor) {
-                leasorId = leasor.id;
-                console.log(`✓ Found leasor: ${leasor.companyName} (ID: ${leasor.id}) for "${leasorValue}"`);
+              if (lessor) {
+                lessorId = lessor.id;
+                console.log(`✓ Found lessor: ${lessor.companyName} (ID: ${lessor.id}) for "${lessorValue}"`);
               } else {
-                throw new Error(`Leasor Name "${leasorValue}" not found. Please check the leasor name or ID exists in the system, preferably with business type containing "Leasor", "Owner", or "Leasing".`);
+                throw new Error(`Lessor Name "${lessorValue}" not found. Please check the lessor name or ID exists in the system, preferably with business type containing "Lessor", "Owner", or "Leasing".`);
               }
             } else {
-                          throw new Error(`Leasor Name is required for Lease container ${row["Container Number"]}`);
+                          throw new Error(`Lessor Name is required for Lease container ${row["Container Number"]}`);
           }
             
             // Find port for leasing record using enhanced lookup - handle both ID and name
@@ -1371,7 +1371,7 @@ const DataImportTable = () => {
             
             // Create leasing info record - THIS IS CRITICAL FOR LEASE CONTAINERS
             // Since validation is strict, all IDs should be found by now
-            if (leasorId && portId && depotId) {
+            if (lessorId && portId && depotId) {
               // Parse dates safely using enhanced timezone-safe date parsing
               let onHireDate = createLocalDateISO(new Date());
               let offHireDate = null;
@@ -1398,7 +1398,7 @@ const DataImportTable = () => {
               inventoryPayload.leasingInfo.push({
                 ownershipType: "Leased", // Backend expects "Leased" not "Lease"
                 leasingRefNo: row["Lease Ref No"] || `LEASE-${row["Container Number"]}`,
-                leasoraddressbookId: leasorId,
+                lessoraddressbookId: lessorId,
                 onHireDepotaddressbookId: depotId,
                 portId: portId,
                 onHireDate: onHireDate,
@@ -1407,7 +1407,7 @@ const DataImportTable = () => {
                 remarks: row["remarks"] || ""
               });
             } else {
-              throw new Error(`Cannot create leasing info. Missing required references: leasor=${leasorId ? 'found' : 'missing'}, depot=${depotId ? 'found' : 'missing'}, port=${portId ? 'found' : 'missing'}`);
+              throw new Error(`Cannot create leasing info. Missing required references: lessor=${lessorId ? 'found' : 'missing'}, depot=${depotId ? 'found' : 'missing'}, port=${portId ? 'found' : 'missing'}`);
             }
           }
           
@@ -1487,7 +1487,7 @@ const DataImportTable = () => {
                   await axios.post('http://localhost:8000/leasinginfo', {
                     ownershipType: 'Own',
                     leasingRefNo: row["Lease Ref No"] || `OWN-${row["Container Number"]}`,
-                    leasoraddressbookId: depotId,
+                    lessoraddressbookId: depotId,
                     onHireDepotaddressbookId: depotId,
                     portId: portId,
                     onHireDate: onHireDate,

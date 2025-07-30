@@ -490,7 +490,7 @@ const AddShipmentModal = ({
         const businessType = (entry.businessType || "").toLowerCase();
 
         const isDepotOrCY =
-          businessType.includes("deport terminal") ||
+          businessType.includes("depot terminal") ||
           businessType.includes("cy terminal");
 
         const linkedToPort =
@@ -737,7 +737,7 @@ const AddShipmentModal = ({
           (entry: any) =>
             entry.businessType?.includes("Depot") ||
             entry.businessType?.includes("Empty Return") ||
-            entry.businessType?.includes("Deport Terminal")
+            entry.businessType?.includes("Depot Terminal")
         );
         setDepotSuggestions(depots);
       } catch (err) {
@@ -985,7 +985,7 @@ const AddShipmentModal = ({
             (entry: any) =>
               entry.businessType?.includes("Depot") ||
               entry.businessType?.includes("Empty Return") ||
-              entry.businessType?.includes("Deport Terminal")
+              entry.businessType?.includes("Depot Terminal")
           )
           .map((entry: any) => ({ id: entry.id, name: entry.companyName }));
 

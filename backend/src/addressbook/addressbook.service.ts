@@ -167,4 +167,21 @@ async getNextRefId(): Promise<{ refId: string }> {
   });
 }
 
+  async findLocationsByPort(portId: number) {
+    return this.prisma.addressBook.findMany({
+      where: {
+        businessPorts: {
+          some: {
+            portId: portId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        companyName: true,
+        businessType: true,
+      },
+    });
+  }
+
 }

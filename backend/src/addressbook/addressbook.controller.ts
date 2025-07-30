@@ -16,10 +16,14 @@ getNextRefId() {
   return this.addressbook.getNextRefId();
 }
 
-
   @Get()
   findAll() {
     return this.addressbook.findAll();
+  }
+
+  @Get('locations-by-port/:portId')
+  findLocationsByPort(@Param('portId', ParseIntPipe) portId: number) {
+    return this.addressbook.findLocationsByPort(portId);
   }
 
   @Get(':id')

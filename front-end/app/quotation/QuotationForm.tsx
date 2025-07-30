@@ -268,7 +268,7 @@ const AddQuotationModal = ({
         const businessType = (entry.businessType || "").toLowerCase();
 
         const isDepotOrCY =
-          businessType.includes("deport terminal") ||
+          businessType.includes("depot terminal") ||
           businessType.includes("cy terminal");
 
         const linkedToPort =
@@ -302,7 +302,7 @@ const AddQuotationModal = ({
       const filtered = data.filter((entry: any) => {
         const businessType = (entry.businessType || "").toLowerCase();
         const isDepotOrCY =
-          businessType.includes("deport terminal") ||
+          businessType.includes("depot terminal") ||
           businessType.includes("cy terminal");
 
         const linkedToPort =
@@ -1723,20 +1723,7 @@ const AddQuotationModal = ({
               />
             </div>
 
-            <div>
-              <Label htmlFor="terminalHandlingFee" className="block text-sm text-white mb-1">
-                Terminal Handling Fee
-              </Label>
-              <Input
-                type="text"
-                value={form.terminalHandlingFee ?? ""}
-                onChange={(e) =>
-                  setForm({ ...form, terminalHandlingFee: e.target.value })
-                }
-                id="terminalHandlingFee"
-                className="w-full p-2 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-800"
-              />
-            </div>
+          
             <div>
               <Label htmlFor="containerPreparationCost" className="block text-sm text-white mb-1">
                 Container Preparation

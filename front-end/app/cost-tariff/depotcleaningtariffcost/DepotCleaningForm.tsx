@@ -61,7 +61,7 @@ const AddTariffModal = ({ onClose, formTitle, form, setForm }: any) => {
       const filtered = res.data.filter(
         (a: any) =>
           a.businessType &&
-          (a.businessType.includes("Deport Terminal") ||
+          (a.businessType.includes("Depot Terminal") ||
             a.businessType.includes("CY Terminal"))
       );
       setDepots(filtered);

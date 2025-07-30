@@ -44,7 +44,7 @@ const AddTariffModal = ({
       const terminals = res.data.filter(
         (a: any) =>
           a.businessType &&
-          (a.businessType.includes("Deport Terminal") ||
+          (a.businessType.includes("Depot Terminal") ||
             a.businessType.includes("CY Terminal"))
       );
       setAddressBookList(terminals);

@@ -526,7 +526,7 @@ const AddInventoryForm: React.FC<InventoryFormProps> = ({
         const res = await fetch("http://localhost:8000/addressbook");
         const data = await res.json();
         const leasors = data.filter(
-          (entry: any) => entry.businessType && entry.businessType.includes("Leasor")
+          (entry: any) => entry.businessType && entry.businessType.includes("Lessor")
         );
         setLeasoraddressbookIds(leasors);
         setDataLoadingComplete(prev => ({ ...prev, leasors: true }));
