@@ -227,8 +227,8 @@ export default function SidebarWithHeader({
       `}</style>
       <aside className="w-64 min-w-64 max-w-64 bg-gray-50 dark:bg-neutral-900 border-r border-gray-200 dark:border-neutral-800 shadow-sm flex flex-col flex-shrink-0">
         <div className="px-0 py-0 border-b border-gray-200 dark:border-neutral-800 flex items-center justify-center bg-white dark:bg-neutral-800">
-          <Image
-            src="/ristar.png"
+          <Image 
+            src="/ristar.jpeg"
             alt="RISTAR Logo" 
             width={220}
             height={100}
@@ -312,7 +312,7 @@ export default function SidebarWithHeader({
         </div>
       </aside>
       <main className="flex-1 flex flex-col min-h-screen bg-white dark:bg-neutral-950 overflow-hidden">
-        <header className="bg-white dark:bg-neutral-900 shadow px-6 py-4 flex items-center min-h-[64px] border-b border-neutral-800 flex-shrink-0">
+        <header className="bg-white dark:bg-neutral-900 shadow px-6 py-4 flex items-center min-h-[64px] border-b border-neutral-800 flex-shrink-0 my-2.5">
           {sectionTitle && (
             <span
               className="font-bold text-2xl text-orange-400 tracking-wide"
@@ -320,12 +320,13 @@ export default function SidebarWithHeader({
                 letterSpacing: "0.04em",
               }}
               title={sectionTitle}
+              
             >
               {sectionTitle}
             </span>
           )}
         </header>
-        <section className="flex-1 bg-white dark:bg-neutral-950 p-6 overflow-x-auto overflow-y-auto">
+        <section className="flex-1 bg-white dark:bg-neutral-950 p-6 overflow-x-auto overflow-y-hidden">
           {children}
         </section>
       </main>
