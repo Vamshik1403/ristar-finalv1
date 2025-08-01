@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
+import { MemoizedThemeWrapper } from "@/components/MemoizedThemeWrapper";
 
 
 import {
@@ -180,6 +181,11 @@ function hasActiveChild(item: any, pathname: string) {
 
 // Helper to get section title from pathname
 function getSectionTitle(pathname: string) {
+  // Handle root path to show Dashboard when starting the website
+  if (pathname === "/" || pathname === "/dashboard") {
+    return "Dashboard";
+  }
+  
   for (const item of navItems) {
     if (item.href && pathname.startsWith(item.href)) return item.label;
     if (item.children) {
@@ -200,7 +206,7 @@ export default function SidebarWithHeader({
   const sectionTitle = getSectionTitle(pathname);
 
   return (
-    <div className="flex h-screen bg-gray-50 dark:bg-neutral-950">
+    <MemoizedThemeWrapper className="flex h-screen bg-gray-50 dark:bg-neutral-950">
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 4px;
@@ -311,26 +317,27 @@ export default function SidebarWithHeader({
           &copy; {new Date().getFullYear()} Ristar Logistics.
         </div>
       </aside>
-      <main className="flex-1 flex flex-col min-h-screen bg-white dark:bg-neutral-950 overflow-hidden">
-        <header className="bg-white dark:bg-neutral-900 shadow px-6 py-4 flex items-center min-h-[64px] border-b border-neutral-800 flex-shrink-0 my-2.5">
+      <main className="flex-1 flex flex-col min-h-screen bg-white dark:bg-neutral-900 overflow-hidden">
+        <header className="bg-white dark:bg-neutral-900 px-6 py-4 flex items-center min-h-[64px] flex-shrink-0 overflow-hidden border-b border-gray-800 dark:border-neutral-800">
           {sectionTitle && (
-            <span
-              className="font-bold text-2xl text-orange-400 tracking-wide"
-              style={{
-                letterSpacing: "0.04em",
-              }}
-              title={sectionTitle}
-              
-            >
-              {sectionTitle}
-            </span>
+            <div className="flex-1 min-w-0 size-10.5">
+              <span
+                className="font-bold text-3xl text-orange-400 tracking-wide truncate block"
+                style={{
+                  letterSpacing: "0.04em",
+                }}
+                title={sectionTitle}
+              >
+                {sectionTitle}
+              </span>
+            </div>
           )}
         </header>
-        <section className="flex-1 bg-white dark:bg-neutral-950 p-6 overflow-x-auto overflow-y-hidden">
+        <section className="flex-1 bg-white dark:bg-neutral-950 p-4 overflow-x-auto overflow-y-auto custom-scrollbar">
           {children}
         </section>
       </main>
-    </div>
+    </MemoizedThemeWrapper>
   );
 }
 
