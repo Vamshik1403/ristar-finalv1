@@ -113,6 +113,10 @@ export class CreateShipmentDto {
   @IsDateString()
   estimateDate: string;
 
+  @IsOptional()
+  @IsString()
+  tankPreparation?: string;
+
     @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ShipmentContainerDto)

@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import AddContainerLeaseForm from "./AddContainerLeaseForm";
 import { Button } from "@/components/ui/button";
 import {
@@ -147,6 +147,7 @@ const ContainerLeaseTariffPage = () => {
           className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium py-2 px-6 shadow rounded-md whitespace-nowrap cursor-pointer"
           onClick={() => setShowModal(true)}
         >
+          <Plus className="mr-2 h-4 w-4" />
           Add Tariff
         </Button>
         {showModal && (

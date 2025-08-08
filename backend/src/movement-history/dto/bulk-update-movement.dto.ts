@@ -16,11 +16,16 @@ export class BulkUpdateMovementDto {
   newStatus: string;
 
   @IsString()
+  @IsOptional()
   jobNumber: string;
 
   @IsOptional()
   @IsInt()
   portId?: number;
+
+  @IsOptional()
+  @IsString()
+  vesselName?: string;
 
   @IsOptional()
   @IsInt()
@@ -29,6 +34,15 @@ export class BulkUpdateMovementDto {
   @IsOptional()
   @IsString()
   remarks?: string;
+
+   @IsOptional()
+  @IsInt()
+  portIdFromClient?: number;
+
+  @IsOptional()
+  @IsInt()
+  addressBookIdFromClient?: number;
+  
   @IsOptional()
   @IsISO8601()
   date?: string;

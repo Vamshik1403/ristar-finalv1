@@ -25,9 +25,13 @@ import { QuotationModule } from './quotation/quotation.module';
 import { ShipmentModule } from './shipment/shipment.module';
 import { MovementHistoryModule } from './movement-history/movement-history.module';
 import { EmptyRepoJobModule } from './empty-repo-job/empty-repo-job.module';
+import { AuthModule } from './auth/auth.module';
+import { PermissionsModule } from './permissions/permissions.module';
+import { ConfigModule } from '@nestjs/config';
 
 @Module({
   imports: [ 
+    ConfigModule.forRoot({ isGlobal: true }),
     AddressbookModule, 
     PrismaModule, 
     PortsModule, 
@@ -48,7 +52,9 @@ import { EmptyRepoJobModule } from './empty-repo-job/empty-repo-job.module';
     QuotationModule,
     ShipmentModule,
     MovementHistoryModule,
-    EmptyRepoJobModule
+    EmptyRepoJobModule,
+    AuthModule,
+    PermissionsModule
   ],
 
   controllers: [AppController, AddressbookController],

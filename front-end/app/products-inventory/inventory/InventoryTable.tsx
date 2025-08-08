@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from 'react';
-import { Pencil, Search, Trash2, Filter, X } from "lucide-react";
+import { Pencil, Search, Trash2, Filter, X, Plus } from "lucide-react";
 import AddContainerForm from '../inventory/CreateInventoryForm';
 import axios from 'axios';
 import { Button } from "@/components/ui/button";
@@ -198,6 +198,7 @@ const ProductsInventoryPage = () => {
           className="bg-blue-600 hover:bg-blue-700 text-white cursor-pointer"
           onClick={handleAddContainerClick}
         >
+          <Plus className="mr-2 h-4 w-4" />
           Add Container
         </Button>
       </div>

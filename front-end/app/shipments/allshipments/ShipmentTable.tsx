@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { Pencil, Search, Trash2, Plus, History, Download, Eye } from 'lucide-react';
+import { Pencil, Search, Trash2, Plus, History, Download, Eye, MoreVertical } from 'lucide-react';
 import axios from 'axios';
 import AddShipmentForm from './AddShipmentForm';
 import ViewShipmentModal from './ViewShipmentModal';
@@ -16,17 +16,58 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { generateCroPdf } from './generateCroPdf';
+
+interface Shipment {
+  id: number;
+  [key: string]: any;
+}
 
 const AllShipmentsPage = () => {
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
   const [viewShipment, setViewShipment] = useState<any>(null);
-  const [shipments, setShipments] = useState([]);
+  const [shipments, setShipments] = useState<Shipment[]>([]);
   const [containerSearch, setContainerSearch] = useState('');
 
   // Add state for selected containers
   const [selectedContainers, setSelectedContainers] = useState<any[]>([]);
+
+  // Add state for CRO modal
+  const [showCroModal, setShowCroModal] = useState(false);
+  const [croFormData, setCroFormData] = useState({
+    shipmentId: 0,
+    date: new Date().toISOString().split('T')[0], // Fixed current date
+    houseBL: '',
+    shipperRefNo: '',
+    shipper: '',
+    releaseDate: '',
+    pol: '',
+    finalDestination: '',
+    tankPrep: '',
+    pod: '',
+    depotName: '',
+    depotAddress: '',
+    depotContact: '',
+    depotEmail: '',
+    depotCountry: '',
+    depotMobile: '',
+    containers: [] as any[]
+  });
 
   const [formData, setFormData] = useState({
     id: undefined,
@@ -34,6 +75,7 @@ const AllShipmentsPage = () => {
     quotationRefNo: '',
     referenceNumber: '',
     masterBL: '',
+    houseBL: '', // Add houseBL field
     shippingTerm: '',
     date: new Date().toISOString().split('T')[0],
     jobNumber: '',
@@ -101,6 +143,9 @@ const AllShipmentsPage = () => {
 
     // Vessel
     vesselName: '',
+    
+    // Tank preparation
+    tankPreparation: '',
   });
 
   const fetchShipments = async () => {
@@ -200,6 +245,7 @@ const AllShipmentsPage = () => {
       jobNumber: shipment.jobNumber || '',
       referenceNumber: shipment.refNumber || '',
       masterBL: shipment.masterBL || '',
+      houseBL: shipment.houseBL || '', // Add houseBL field
 
       // FIX: Ensure shipping term is passed correctly
       shippingTerm: shipment.shippingTerm || '',
@@ -269,6 +315,9 @@ const AllShipmentsPage = () => {
       
       // Vessel name
       vesselName: shipment.vesselName || '',
+      
+      // Tank preparation field
+      tankPreparation: shipment.tankPreparation || '',
     });
 
     // Fetch port information for proper port names
@@ -326,6 +375,99 @@ const AllShipmentsPage = () => {
     await generateCroPdf(shipmentId, containers);
   };
 
+  // Handle opening CRO modal with pre-filled data
+  const handleOpenCroModal = async (shipment: any) => {
+    try {
+      // Fetch fresh data for the shipment
+      const [addressBooksRes] = await Promise.all([
+        axios.get(`http://localhost:8000/addressbook`),
+      ]);
+      
+      const addressBooks = addressBooksRes.data;
+      
+      // Get company information
+      const shipper = addressBooks.find(
+        (ab: any) => ab.id === shipment.shipperAddressBookId
+      );
+      
+      const primaryDepot = addressBooks.find(
+        (ab: any) => ab.companyName === (shipment.containers?.[0]?.depotName || "Unknown Depot")
+      ) || addressBooks.find(
+        (ab: any) => ab.name === (shipment.containers?.[0]?.depotName || "Unknown Depot")
+      ) || addressBooks.find(
+        (ab: any) => {
+          const depotName = shipment.containers?.[0]?.depotName || "Unknown Depot";
+          return ab.companyName?.includes(depotName) || depotName.includes(ab.companyName);
+        }
+      );
+
+      // Pre-fill form data with current shipment data
+      setCroFormData({
+        shipmentId: shipment.id,
+        date: new Date().toISOString().split('T')[0], // Fixed current date
+        houseBL: shipment.houseBL || shipment.masterBL || '',
+        shipperRefNo: shipment.refNumber || '',
+        shipper: shipper?.companyName || '',
+        releaseDate: shipment.gsDate ? new Date(shipment.gsDate).toISOString().split('T')[0] : '',
+        pol: shipment.polPort?.portName || '',
+        finalDestination: shipment.podPort?.portName || '',
+        tankPrep: shipment.tankPreparation || 'N/A',
+        pod: shipment.podPort?.portName || '',
+        depotName: shipment.containers?.[0]?.depotName || 'Unknown Depot',
+        depotAddress: primaryDepot?.address || '',
+        depotContact: primaryDepot?.phone || '',
+        depotEmail: primaryDepot?.email || '',
+        depotCountry: primaryDepot?.country?.name || primaryDepot?.country?.countryName || primaryDepot?.country || '',
+        depotMobile: (() => {
+          // First check contacts array for mobile number
+          if (primaryDepot?.contacts && Array.isArray(primaryDepot.contacts) && primaryDepot.contacts.length > 0) {
+            const firstContact = primaryDepot.contacts[0];
+            if (firstContact?.mobileNo) return firstContact.mobileNo;
+            if (firstContact?.mobile) return firstContact.mobile;
+            if (firstContact?.phoneNumber) return firstContact.phoneNumber;
+          }
+          // If not found in contacts, check direct fields
+          return primaryDepot?.mobile || primaryDepot?.mobileNumber || primaryDepot?.phoneNumber || primaryDepot?.contact || primaryDepot?.phone || '';
+        })(),
+        containers: shipment.containers || []
+      });
+      
+      setShowCroModal(true);
+    } catch (error) {
+      console.error('Error loading CRO data:', error);
+    }
+  };
+
+  // Handle saving CRO form data
+  const handleSaveCroData = () => {
+    // Here you can add logic to save the form data to database if needed
+    console.log('Saving CRO data:', croFormData);
+    // For now, just close the modal
+    setShowCroModal(false);
+  };
+
+  // Handle editing shipment from CRO modal
+  const handleEditShipmentFromCro = async () => {
+    try {
+      // Find the current shipment data
+      const shipmentToEdit = shipments.find(s => s.id === croFormData.shipmentId);
+      if (shipmentToEdit) {
+        // Close CRO modal first
+        setShowCroModal(false);
+        // Use existing handleEdit function to open edit form
+        await handleEdit(shipmentToEdit);
+      }
+    } catch (error) {
+      console.error('Error opening edit form:', error);
+    }
+  };
+
+  // Handle downloading PDF with current form data
+  const handleDownloadCroPdf = async () => {
+    await generateCroPdf(croFormData.shipmentId, croFormData.containers);
+    setShowCroModal(false);
+  };
+
 
   return (
     <div className="px-4 pt-4 pb-4 bg-white dark:bg-black min-h-screen">
@@ -353,6 +495,7 @@ const AllShipmentsPage = () => {
               quotationRefNo: '',
               referenceNumber: '',
               masterBL: '',
+              houseBL: '', // Add houseBL field
               shippingTerm: '',
               date: new Date().toISOString().split('T')[0],
               jobNumber: '',
@@ -420,6 +563,9 @@ const AllShipmentsPage = () => {
 
               // Vessel
               vesselName: '',
+              
+              // Tank preparation
+              tankPreparation: '',
             });
             setSelectedContainers([]);
             setShowModal(true);
@@ -545,15 +691,26 @@ const AllShipmentsPage = () => {
                       >
                         <Trash2 size={16} />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-green-400 hover:text-green-300 hover:bg-green-900/40 cursor-pointer dark:hover:bg-green-900/40"
-                        title="Download PDF"
-                        onClick={() => handleDownloadPDF(shipment.id, shipment.containers ?? [])}
-                      >
-                        <Download size={16} />
-                      </Button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-400 hover:text-gray-300 hover:bg-gray-900/40 cursor-pointer dark:hover:bg-gray-900/40"
+                            title="More options"
+                          >
+                            <MoreVertical size={16} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleOpenCroModal(shipment)} className='cursor-pointer'>
+                            Generate CRO
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleDownloadPDF(shipment.id, shipment.containers ?? [])} className='cursor-pointer'>
+                            Generate BL
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     </TableCell>
                   </TableRow>
                 ))
@@ -561,6 +718,246 @@ const AllShipmentsPage = () => {
           </TableBody>
         </Table>
       </div>
+
+      {/* CRO Form Modal */}
+      <Dialog open={showCroModal} onOpenChange={setShowCroModal}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Generate Container Release Order</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            {/* Document Information */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="date">Date (Fixed)</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={croFormData.date}
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="houseBL">House BL</Label>
+                <Input
+                  id="houseBL"
+                  value={croFormData.houseBL}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="shipperRefNo">Reference No.</Label>
+                <Input
+                  id="shipperRefNo"
+                  value={croFormData.shipperRefNo}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shipper">Shipper</Label>
+                <Input
+                  id="shipper"
+                  value={croFormData.shipper}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            {/* Shipment Details */}
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="releaseDate">Release Date</Label>
+                <Input
+                  id="releaseDate"
+                  type="date"
+                  value={croFormData.releaseDate}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="pol">Port of Loading (POL)</Label>
+                <Input
+                  id="pol"
+                  value={croFormData.pol}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="pod">Port of Discharge (POD)</Label>
+                <Input
+                  id="pod"
+                  value={croFormData.pod}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="finalDestination">Final Destination</Label>
+                <Input
+                  id="finalDestination"
+                  value={croFormData.finalDestination}
+                  readOnly
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="tankPrep">Tank Preparation</Label>
+              <Input
+                id="tankPrep"
+                value={croFormData.tankPrep}
+                readOnly
+                disabled
+                className="bg-gray-100 cursor-not-allowed"
+              />
+            </div>
+
+            {/* Depot Information */}
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Depot Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="depotName">Depot Name</Label>
+                  <Input
+                    id="depotName"
+                    value={croFormData.depotName}
+                    readOnly
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="depotAddress">Depot Address</Label>
+                  <Input
+                    id="depotAddress"
+                    value={croFormData.depotAddress}
+                    readOnly
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="space-y-2">
+                  <Label htmlFor="depotContact">Depot Contact</Label>
+                  <Input
+                    id="depotContact"
+                    value={croFormData.depotContact}
+                    readOnly
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="depotEmail">Depot Email</Label>
+                  <Input
+                    id="depotEmail"
+                    value={croFormData.depotEmail}
+                    readOnly
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="space-y-2">
+                  <Label htmlFor="depotCountry">Depot Country</Label>
+                  <Input
+                    id="depotCountry"
+                    value={croFormData.depotCountry}
+                    readOnly
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="depotMobile">Depot Mobile</Label>
+                  <Input
+                    id="depotMobile"
+                    value={croFormData.depotMobile}
+                    readOnly
+                    disabled
+                    className="bg-gray-100 cursor-not-allowed"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Container Information */}
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Container Information</h3>
+              <div className="bg-gray-50 rounded-lg p-4 border dark:border-neutral-700 dark:bg-neutral-800">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {croFormData.containers.length > 0 ? (
+                    croFormData.containers.map((container, index) => (
+                      <div key={index} className="bg-white rounded-md p-3 border border-gray-200 shadow-sm dark:bg-neutral-700 dark:border-neutral-600">
+                        <div className="space-y-1">
+                          <div className="font-medium text-sm text-gray-900 dark:text-white">
+                            {container.containerNumber || 'N/A'}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-white">
+                            Size: {container.containerSize || 'N/A'}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-white">
+                            Depot: {container.depotName || 'N/A'}
+                          </div>
+                          {container.last3Cargo && container.last3Cargo.length > 0 && (
+                            <div className="text-xs text-gray-500">
+                              Last Cargo: {container.last3Cargo.slice(0, 1).join(', ')}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center text-gray-500 py-4">
+                      No containers selected
+                    </div>
+                  )}
+                </div>
+                <div className="mt-3 text-sm text-gray-600 dark:text-white">
+                  Total Containers: {croFormData.containers.length}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="space-x-2">
+            <Button variant="outline" onClick={() => setShowCroModal(false)} className='cursor-pointer'>
+              Cancel
+            </Button>
+            <Button variant="outline" onClick={handleEditShipmentFromCro} className='cursor-pointer'>
+              Edit Shipment Form
+            </Button>
+            <Button onClick={handleDownloadCroPdf} className='cursor-pointer'>
+              Download PDF
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import PermissionForm from "./PermissionForm";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Plus } from "lucide-react";
 
 const PermissionTable = () => {
   const [activeTab, setActiveTab] = useState<"permissions" | "roles">("permissions");
@@ -41,7 +42,8 @@ const PermissionTable = () => {
           onClick={handleAddClick}
           className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded text-sm font-medium cursor-pointer"
         >
-          + {activeTab === "permissions" ? "Add Permissions" : "Add Roles"}
+           <Plus className="mr-2 h-4 w-4" />
+          {activeTab === "permissions" ? "Add Permissions" : "Add Roles"}
         </Button>
       </div>
 

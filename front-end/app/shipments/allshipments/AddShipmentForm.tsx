@@ -1218,6 +1218,7 @@ const AddShipmentModal = ({
       if (form.jobNumber) payload.jobNumber = form.jobNumber;
       payload.refNumber = form.referenceNumber || ""; // Always include refNumber, even if empty
       payload.masterBL = form.masterBL || ""; // Always include masterBL, even if empty
+      payload.houseBL = form.houseBL || ""; // Always include houseBL, even if empty
       if (form.shippingTerm) payload.shippingTerm = form.shippingTerm;
 
       // IDs - convert to numbers if they exist
@@ -1263,6 +1264,11 @@ const AddShipmentModal = ({
       payload.podDetentionRate = form.detentionRate2 || "0";
       payload.quantity = form.quantity || String(selectedContainers.length);
       payload.vesselName = form.vesselName || "Default Vessel";
+      
+      // Add tank preparation field
+      if (form.tankPreparation) {
+        payload.tankPreparation = form.tankPreparation;
+      }
 
       // Date fields - use current date as fallback
       if (form.gateClosingDate)
@@ -1645,9 +1651,6 @@ const AddShipmentModal = ({
     </div>
   );
 
-
-
-  // --- UI Starts Here - Updated with AddProductForm styling ---
   return (
     <>
       <ProfessionalTopAlert />
@@ -1814,13 +1817,9 @@ const AddShipmentModal = ({
                       id="jobNumber"
                       type="text"
                       value={form.jobNumber || ""}
-                      onChange={(e) => {
-                        setForm({ ...form, jobNumber: e.target.value });
-                        if (validationErrors.jobNumber) {
-                          setValidationErrors(prev => ({...prev, jobNumber: ""}));
-                        }
-                      }}
-                      className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-800 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
+                      readOnly
+                      disabled
+                      className="w-full p-2.5 bg-gray-100 text-gray-900 dark:bg-neutral-700 dark:text-white rounded border border-neutral-200 dark:border-neutral-700 cursor-not-allowed"
                     />
                     {validationErrors.jobNumber && (
                       <p className="text-red-500 text-xs mt-1">{validationErrors.jobNumber}</p>
@@ -1860,6 +1859,25 @@ const AddShipmentModal = ({
                       className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-800 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
                     />
                   </div>
+                  {/* House BL field - only show in edit mode */}
+                  {form.id && (
+                    <div>
+                      <Label
+                        htmlFor="houseBL"
+                        className="block text-sm text-gray-900 dark:text-neutral-200 mb-1"
+                      >
+                        House BL
+                      </Label>
+                      <Input
+                        id="houseBL"
+                        type="text"
+                        value={form.houseBL || ""}
+                        readOnly
+                        disabled
+                        className="w-full p-2.5 bg-gray-100 text-gray-900 dark:bg-neutral-700 dark:text-white rounded border border-neutral-200 dark:border-neutral-700 cursor-not-allowed"
+                      />
+                    </div>
+                  )}
                   <div>
                     <Label
                       htmlFor="shippingTerm"
@@ -2186,6 +2204,25 @@ const AddShipmentModal = ({
                         )}
                       </ul>
                     )}
+                  </div>
+
+                   {/* Tank Preparation */}
+                   <div>
+                    <Label
+                      htmlFor="tankPreparation"
+                      className="block text-sm text-gray-900 dark:text-neutral-200 mb-1"
+                    >
+                      Tank Preparation
+                    </Label>
+                    <Input
+                      id="tankPreparation"
+                      type="text"
+                      value={form.tankPreparation || ""}
+                      onChange={(e) =>
+                        setForm({ ...form, tankPreparation: e.target.value })
+                      }
+                      className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-800 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
+                    />
                   </div>
                 </div>
               </div>
@@ -2629,7 +2666,9 @@ const AddShipmentModal = ({
                         setValidationErrors(prev => ({...prev, quantity: ""}));
                       }
                     }}
-                    className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-800 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
+                    disabled={!form.portOfLoading}
+                    placeholder={!form.portOfLoading ? "First select Port of Loading" : "Enter quantity"}
+                    className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-800 dark:text-white rounded border border-neutral-200 dark:border-neutral-700 disabled:bg-gray-100 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed"
                   />
                   {validationErrors.quantity && (
                     <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
@@ -2649,11 +2688,13 @@ const AddShipmentModal = ({
                       value={form.containerNumber || ""}
                       onChange={(e) => handleContainerSearch(e.target.value)}
                       placeholder={
-                        !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0
+                        !form.portOfLoading
+                          ? "First select Port of Loading"
+                          : !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0
                           ? "Please enter valid quantity first"
                           : "Type at least 2 characters"
                       }
-                      disabled={!form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0}
+                      disabled={!form.portOfLoading || !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0}
                       className="rounded-l w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-800 dark:text-white border border-neutral-200 dark:border-neutral-700 disabled:bg-gray-100 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed"
                     />
                     <Button
@@ -2663,9 +2704,9 @@ const AddShipmentModal = ({
                         dark:bg-neutral-800 dark:hover:bg-blue-900 dark:border-neutral-700
                         transition-colors disabled:bg-gray-100 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed cursor-pointer"
                       onClick={() => setShowContainerModal(true)}
-                      disabled={!form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0}
+                      disabled={!form.portOfLoading || !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0}
                     >
-                      <Plus className={`w-10 h-10 ${!form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0 ? 'text-gray-400 dark:text-neutral-500' : 'text-blue-600 dark:text-blue-400'} cursor-pointer`}/>
+                      <Plus className={`w-10 h-10 ${!form.portOfLoading || !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0 ? 'text-gray-400 dark:text-neutral-500' : 'text-blue-600 dark:text-blue-400'} cursor-pointer`}/>
                     </Button>
                   </div>
                   {suggestions.length > 0 && (

@@ -114,7 +114,7 @@ const CurrencyPage = () => {
             placeholder="Search currencies..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-8 w-full p-2 pl-10 rounded-lg bg-background text-foreground placeholder-muted-foreground border border-border focus:outline-none focus:border-blue-500 transition-all"
+            className="h-8 w-full p-2 pl-10 rounded-lg bg-background text-foreground placeholder-muted-foreground border border-border border-neutral-200 dark:border-neutral-700 outline-neutral-200 dark:outline-neutral-700 focus:border-blue-500 transition-all "
           />
         </div>
         <Button

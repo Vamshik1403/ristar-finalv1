@@ -3,7 +3,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import AddCompanyForm from "./AddCompanyForm";
 import ViewAddressBookModal from "./ViewAddressBookModal";
-import { Search, Pencil, Trash2, Eye } from "lucide-react";
+import { Search, Pencil, Trash2, Eye, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 import {
@@ -155,7 +155,7 @@ const AddressBook = () => {
             <input
               type="text"
               placeholder="Search companies..."
-              className="outline-none text-sm w-60 bg-transparent text-foreground placeholder-muted-foreground"
+              className="outline-none text-sm w-60 bg-transparent text-foreground placeholder-muted-foreground bg-white dark:bg-neutral-900 border-neutral-800 text-black dark:text-white"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -179,6 +179,7 @@ const AddressBook = () => {
           onClick={handleAddCompanyClick}
           className="bg-blue-700 hover:bg-blue-800 text-white font-semibold transition-all duration-200 shadow cursor-pointer"
         >
+        <Plus className="mr-2 h-4 w-4" />
           Add Company
         </Button>
       </div>

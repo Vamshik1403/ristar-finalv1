@@ -40,6 +40,7 @@ getLatestPerContainer() {
 
 
   @Post('bulk-create')
+  
   async bulkCreateStatus(
     
     @Body()
@@ -50,10 +51,12 @@ getLatestPerContainer() {
       portId?: number;
       addressBookId?: number;
       remarks?:string;
+      vesselName?: string;
     },
     
   ) {
-    const { ids, newStatus, portId, addressBookId ,remarks } = body;
+    console.log('🚀 Received payload:', body); 
+    const { ids, newStatus, portId, addressBookId ,remarks , vesselName} = body;
 
     const results = await Promise.all(
       ids.map((id) =>
@@ -62,7 +65,8 @@ getLatestPerContainer() {
           newStatus,
           portId ?? null,
           addressBookId ?? null,
-          remarks?.trim() || undefined
+          remarks?.trim() || undefined,
+          vesselName?.trim() || undefined,
         ),
       ),
     );
@@ -72,13 +76,15 @@ getLatestPerContainer() {
 
   @Post('bulk-update')
   async bulkUpdate(
-    @Body() dto: { ids: number[]; newStatus: string; jobNumber: string; remarks:string },
+    @Body() dto: { ids: number[]; newStatus: string; jobNumber: string; remarks:string , vesselName?: string },
   ) {
     return this.movementHistoryService.bulkUpdateStatus(
       dto.ids,
       dto.newStatus,
       dto.jobNumber,
-      dto.remarks
+      dto.remarks,
+      dto.vesselName,
+
     );
   }
 

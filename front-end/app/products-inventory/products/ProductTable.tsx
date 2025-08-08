@@ -302,6 +302,7 @@ const ProductsInventoryPage = () => {
           disabled={isSaving}
           className="bg-blue-700 hover:bg-blue-800 text-white text-sm font-medium py-2 px-6 shadow rounded-md whitespace-nowrap cursor-pointer"
         >
+           <Plus className="mr-2 h-4 w-4" />
           {isSaving ? "Saving..." : <>Add Product</>}
         </Button>
       </div>

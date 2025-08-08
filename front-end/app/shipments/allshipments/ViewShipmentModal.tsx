@@ -123,6 +123,7 @@ const ViewShipmentModal: React.FC<ViewShipmentModalProps> = ({
           {renderSection("Company Information", [
             ["Customer Name", shipment.customerAddressBook?.companyName],
             ["Consignee Name", shipment.consigneeAddressBook?.companyName],
+            ["Tank Preparation", shipment.tankPreparation],
             ["Shipper Name", shipment.shipperAddressBook?.companyName],
             ["Carrier Name", shipment.carrierAddressBook?.companyName],
           ])}

@@ -169,7 +169,7 @@ const ViewQuotationModal: React.FC<ViewQuotationModalProps> = ({
             ["Depot Avg Cost", quotation.depotAvgCost],
             ["Leasing Cost", quotation.leasingCost],
             ["Depot Cleaning Cost", quotation.depotCleaningCost],
-            ["Terminal Handling Fee", quotation.terminalHandlingFee],
+            ["Other Cost", quotation.terminalHandlingFee],
             ["Container Preparation", quotation.containerPreparationCost],
             ["Exp. Agency Commission", quotation.expAgencyCommission],
             ["Imp. Agency Commission", quotation.impAgencyCommission],

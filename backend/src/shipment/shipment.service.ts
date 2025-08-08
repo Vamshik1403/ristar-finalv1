@@ -108,16 +108,18 @@ async create(data: CreateShipmentDto) {
           });
 
           if (leasingInfo) {
-            await tx.movementHistory.create({
-              data: {
-                inventoryId: inventory.id,
-                portId: leasingInfo.portId,
-                addressBookId: leasingInfo.onHireDepotaddressbookId,
-                shipmentId: createdShipment.id,
-                status: 'ALLOTTED',
-                date: new Date(),
-              },
-            });
+         await tx.movementHistory.create({
+  data: {
+    inventoryId: inventory.id,
+    portId: leasingInfo.portId,
+    addressBookId: leasingInfo.onHireDepotaddressbookId,
+    shipmentId: createdShipment.id,
+    status: 'ALLOTTED',
+    date: new Date(),
+    jobNumber: createdShipment.jobNumber, // ✅ ADD THIS LINE ONLY HERE
+  },
+});
+
           }
         }
       }
@@ -198,55 +200,117 @@ async create(data: CreateShipmentDto) {
     });
   }
 
-  async update(id: number, data: UpdateShipmentDto) {
+ async update(id: number, data: UpdateShipmentDto) {
   const { containers, ...shipmentData } = data;
 
+  // Fetch the current shipment to get the jobNumber
+  const currentShipment = await this.prisma.shipment.findUnique({
+    where: { id },
+    select: { jobNumber: true },
+  });
+  const jobNumber = currentShipment?.jobNumber || 'UNKNOWN';
+
   return this.prisma.$transaction(async (tx) => {
-    // Step 1: Update shipment
-    const updatedShipment = await tx.shipment.update({
-      where: { id },
-      data: shipmentData,
+    // 1. Fetch existing containers for this shipment
+    const existingContainers = await tx.shipmentContainer.findMany({
+      where: { shipmentId: id },
     });
 
-    // Step 2: Delete old containers
+    const existingInventoryIds = existingContainers
+      .map((c) => c.inventoryId)
+      .filter((id): id is number => id !== null && id !== undefined);
+
+    const newInventoryIds = (containers || [])
+      .map((c) => c.inventoryId)
+      .filter((id): id is number => id !== null && id !== undefined);
+
+    // 2. Identify removed inventoryIds (no longer in the new list)
+    const removedInventoryIds = existingInventoryIds.filter(
+      (oldId) => !newInventoryIds.includes(oldId),
+    );
+
+    // 3. Handle removed containers
+    for (const inventoryId of removedInventoryIds) {
+      const leasingInfo = await tx.leasingInfo.findFirst({
+        where: { inventoryId },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!leasingInfo || leasingInfo.portId == null || leasingInfo.onHireDepotaddressbookId == null) {
+        throw new Error(`Leasing info incomplete for inventoryId ${inventoryId}`);
+      }
+
+      // 3a. Mark as AVAILABLE and clear shipmentId and emptyRepoJobId
+      await tx.movementHistory.create({
+        data: {
+          inventoryId,
+          portId: leasingInfo.portId,
+          addressBookId: leasingInfo.onHireDepotaddressbookId,
+          status: 'AVAILABLE',
+          date: new Date(),
+          remarks: `Removed from shipment - ${jobNumber}`,
+          shipmentId: null,
+          emptyRepoJobId: null,
+        },
+      });
+    }
+
+    // 4. Update shipment main data
+    const updatedShipment = await tx.shipment.update({
+      where: { id },
+      data: {
+        ...shipmentData,
+        date: shipmentData.date ? new Date(shipmentData.date) : undefined,
+        gsDate: shipmentData.gsDate ? new Date(shipmentData.gsDate) : undefined,
+        etaTopod: shipmentData.etaTopod ? new Date(shipmentData.etaTopod) : undefined,
+        estimateDate: shipmentData.estimateDate ? new Date(shipmentData.estimateDate) : undefined,
+        sob: shipmentData.sob ? new Date(shipmentData.sob) : null,
+      },
+    });
+
+    // 5. Delete old containers
     await tx.shipmentContainer.deleteMany({
       where: { shipmentId: id },
     });
 
-    // Step 3: Re-create containers
+    // 6. Re-create container records
     if (containers && containers.length > 0) {
       await tx.shipmentContainer.createMany({
         data: containers.map((container) => ({
-          ...container,
+          containerNumber: container.containerNumber,
+          capacity: container.capacity,
+          tare: container.tare,
+          portId: container.portId ?? undefined,
+          depotName: container.depotName ?? undefined,
+          inventoryId: container.inventoryId ?? undefined,
           shipmentId: id,
         })),
       });
 
-      // Step 4: Create movement history for each container
+      // 7. Log movement history for new containers
       for (const container of containers) {
-        const inventory = await tx.inventory.findFirst({
-          where: { containerNumber: container.containerNumber },
+        if (!container.inventoryId) continue;
+
+        const leasingInfo = await tx.leasingInfo.findFirst({
+          where: { inventoryId: container.inventoryId },
+          orderBy: { createdAt: 'desc' },
         });
 
-        if (inventory) {
-          const leasingInfo = await tx.leasingInfo.findFirst({
-            where: { inventoryId: inventory.id },
-            orderBy: { createdAt: 'desc' },
-          });
-
-          if (leasingInfo) {
-            await tx.movementHistory.create({
-              data: {
-                inventoryId: inventory.id,
-                portId: leasingInfo.portId,
-                addressBookId: leasingInfo.onHireDepotaddressbookId,
-                shipmentId: id,
-                status: 'ALLOTTED',
-                date: new Date(),
-              },
-            });
-          }
+        if (!leasingInfo || leasingInfo.portId == null || leasingInfo.onHireDepotaddressbookId == null) {
+          throw new Error(`Leasing info incomplete for inventoryId ${container.inventoryId}`);
         }
+
+        await tx.movementHistory.create({
+          data: {
+            inventoryId: container.inventoryId,
+            portId: leasingInfo.portId,
+            addressBookId: leasingInfo.onHireDepotaddressbookId,
+            status: 'ALLOTTED',
+            date: new Date(),
+            shipmentId: id,
+            emptyRepoJobId: null,
+          },
+        });
       }
     }
 
@@ -255,12 +319,61 @@ async create(data: CreateShipmentDto) {
 }
 
 
+async remove(id: number) {
+  const shipment = await this.prisma.shipment.findUniqueOrThrow({
+    where: { id },
+    select: {
+      id: true,
+      jobNumber: true,
+    },
+  });
 
-  remove(id: number) {
-    return this.prisma.shipment.delete({
+  const containers = await this.prisma.shipmentContainer.findMany({
+    where: { shipmentId: id },
+  });
+
+  return this.prisma.$transaction(async (tx) => {
+    for (const container of containers) {
+      const inventoryId = container.inventoryId;
+
+      if (!inventoryId) continue; // Skip if null
+
+      const leasingInfo = await tx.leasingInfo.findFirst({
+        where: {
+          inventoryId: inventoryId, // Ensure it's not null
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      if (!leasingInfo || !leasingInfo.portId || !leasingInfo.onHireDepotaddressbookId) {
+        throw new Error(`Leasing info missing for inventoryId ${inventoryId}`);
+      }
+
+      await tx.movementHistory.create({
+        data: {
+          inventoryId,
+          portId: leasingInfo.portId,
+          addressBookId: leasingInfo.onHireDepotaddressbookId,
+          status: 'AVAILABLE',
+          date: new Date(),
+          remarks: `Shipment cancelled - ${shipment.jobNumber}`,
+          shipmentId: shipment.id,
+          emptyRepoJobId: null,
+        },
+      });
+    }
+
+    await tx.shipmentContainer.deleteMany({
+      where: { shipmentId: id },
+    });
+
+    return tx.shipment.delete({
       where: { id },
     });
-  }
+  });
+}
+
+
 
   async getQuotationDataByRef(refNumber: string) {
     return this.prisma.quotation.findUnique({

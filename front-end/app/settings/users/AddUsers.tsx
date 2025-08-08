@@ -19,15 +19,48 @@ const AddUserModal = ({ open, onClose }: { open: boolean; onClose: () => void })
     role: '',
     password: '',
     confirmPassword: '',
+    contact: '',
     active: true,
     administrator: false,
   });
 
  
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Handle form submission logic here
-    onClose();
+    
+    if (form.password !== form.confirmPassword) {
+      alert('Passwords do not match');
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:8000/auth/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: form.email, // Using email as username
+          password: form.password,
+          firstName: form.firstName,
+          lastName: form.lastName,
+          email: form.email,
+          contact: form.contact,
+          userType: form.role === 'admin' ? 'superadmin' : 'executive',
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to create user');
+      }
+
+      const data = await response.json();
+      alert('User created successfully!');
+      onClose();
+    } catch (error: any) {
+      alert(`Error creating user: ${error.message}`);
+    }
   };
 
   return (
@@ -70,6 +103,18 @@ const AddUserModal = ({ open, onClose }: { open: boolean; onClose: () => void })
                   className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
                 />
               </div>
+            </div>
+            {/* Contact */}
+            <div>
+              <Label htmlFor="contact" className="block text-sm text-gray-900 dark:text-neutral-200 mb-1">Contact</Label>
+              <Input
+                type="text"
+                value={form.contact}
+                onChange={e => setForm({ ...form, contact: e.target.value })}
+                className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
+                placeholder="Enter contact number"
+                required
+              />
             </div>
             {/* Role */}
             <div>

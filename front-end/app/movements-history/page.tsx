@@ -6,7 +6,6 @@ const MovementsHistoryPage = () => {
   return (
     <SidebarWithHeader>
       <MovementHistoryTable/>
-
     </SidebarWithHeader>
   );
 };

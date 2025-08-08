@@ -1265,7 +1265,9 @@ const AddShipmentModal = ({
                         setValidationErrors(prev => ({...prev, quantity: ""}));
                       }
                     }}
-                    className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700"
+                    disabled={!form.portOfLoading}
+                    placeholder={!form.portOfLoading ? "First select Port of Loading" : "Enter quantity"}
+                    className="w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white rounded border border-neutral-200 dark:border-neutral-700 disabled:bg-gray-100 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed"
                   />
                   {validationErrors.quantity && (
                     <p className="text-red-500 text-xs mt-1">{validationErrors.quantity}</p>
@@ -1284,11 +1286,13 @@ const AddShipmentModal = ({
                       value={form.containerNumber || ""}
                       onChange={(e) => handleContainerSearch(e.target.value)}
                       placeholder={
-                        !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0
+                        !form.portOfLoading
+                          ? "First select Port of Loading"
+                          : !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0
                           ? "Please enter valid quantity first"
                           : "Type at least 2 characters"
                       }
-                      disabled={!form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0}
+                      disabled={!form.portOfLoading || !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0}
                       className="rounded-l w-full p-2.5 bg-white text-gray-900 dark:bg-neutral-900 dark:text-white border border-neutral-200 dark:border-neutral-700 disabled:bg-gray-100 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed"
                     />
                     <Button
@@ -1298,9 +1302,9 @@ const AddShipmentModal = ({
                         dark:bg-neutral-800 dark:hover:bg-blue-900 dark:border-neutral-700
                         transition-colors disabled:bg-gray-100 dark:disabled:bg-neutral-700 disabled:cursor-not-allowed cursor-pointer"
                       onClick={() => setShowContainerModal(true)}
-                      disabled={!form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0}
+                      disabled={!form.portOfLoading || !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0}
                     >
-                      <Plus className={`w-10 h-10 ${!form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0 ? 'text-gray-400 dark:text-neutral-500' : 'text-blue-600 dark:text-blue-400'} cursor-pointer`} />
+                      <Plus className={`w-10 h-10 ${!form.portOfLoading || !form.quantity || isNaN(parseInt(form.quantity)) || parseInt(form.quantity) <= 0 ? 'text-gray-400 dark:text-neutral-500' : 'text-blue-600 dark:text-blue-400'} cursor-pointer`} />
                     </Button>
                   </div>
                   {suggestions.length > 0 && (
