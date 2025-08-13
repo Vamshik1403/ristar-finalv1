@@ -160,4 +160,17 @@
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(75, 85, 99, 0.7);
 }
+
+/* Dialog content width override */
+[data-radix-dialog-content] {
+  width: 95vw !important;
+  max-width: 1400px !important;
+}
+
+/* Specific override for BL form modal */
+.bl-modal-content {
+  width: 95vw !important;
+  max-width: 1400px !important;
+  min-width: 95vw !important;
+}
 }

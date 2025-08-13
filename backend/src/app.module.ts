@@ -27,6 +27,7 @@ import { MovementHistoryModule } from './movement-history/movement-history.modul
 import { EmptyRepoJobModule } from './empty-repo-job/empty-repo-job.module';
 import { AuthModule } from './auth/auth.module';
 import { PermissionsModule } from './permissions/permissions.module';
+import { BillOfLadingModule } from './bill-of-lading/bill-of-lading.module';
 import { ConfigModule } from '@nestjs/config';
 
 @Module({
@@ -54,7 +55,8 @@ import { ConfigModule } from '@nestjs/config';
     MovementHistoryModule,
     EmptyRepoJobModule,
     AuthModule,
-    PermissionsModule
+    PermissionsModule,
+    BillOfLadingModule
   ],
 
   controllers: [AppController, AddressbookController],

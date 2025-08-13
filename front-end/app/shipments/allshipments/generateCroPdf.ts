@@ -27,7 +27,8 @@ function addTextWithSpacing(doc: any, label: string, value: string, x: number, y
 
 export async function generateCroPdf(
   shipmentId: number,
-  selectedContainers: any[]
+  selectedContainers: any[],
+  providedDate?: string
 ) {
   // Create PDF with custom wider dimensions for better content spacing
   const doc = new jsPDF('p', 'mm', [250, 297]); // Increased width from 220 to 250mm
@@ -93,8 +94,8 @@ export async function generateCroPdf(
       (ab: any) => ab.id === shipment.carrierAddressBookId
     );
 
-    // Format dates
-    const croDate = dayjs(shipment.date).format("DD MMM YYYY");
+    // Format dates - use provided date for CRO if available (for consistency), otherwise use shipment date
+    const croDate = providedDate ? dayjs(providedDate).format("DD MMM YYYY") : dayjs(shipment.date).format("DD MMM YYYY");
     const releaseDate = dayjs(shipment.gsDate).format("DD-MM-YYYY");
     const etd = dayjs(shipment.gsDate).format("DD-MM-YYYY");
     const eta = dayjs(shipment.etaTopod).format("DD-MM-YYYY");
@@ -110,6 +111,7 @@ export async function generateCroPdf(
     // Get product information
     const product = products.find((p: any) => p.id === shipment.productId);
     const productName = product?.productName || "N/A";
+    const productType = product?.productType || "N/A";
 
     // Add containerSize to each container and get cargo history
     const containersWithSize = selectedContainers.map((sc) => {
@@ -267,47 +269,135 @@ export async function generateCroPdf(
       };
     });
 
-    // Use all containers for single PDF generation instead of grouping by depot
-    const allContainers = containersWithSize;
-    const depotName = allContainers[0]?.depotName || "Unknown Depot";
+    // Group containers by depot and port combination for separate pages
+    const containerGroups: { [key: string]: any[] } = {};
     
-    // More flexible depot lookup - try different matching strategies
-    let primaryDepot = addressBooks.find(
-      (ab: any) => ab.companyName === depotName
-    );
-    
-    // If not found by companyName, try by name field
-    if (!primaryDepot) {
-      primaryDepot = addressBooks.find(
-        (ab: any) => ab.name === depotName
-      );
-    }
-    
-    // If still not found, try partial matching
-    if (!primaryDepot) {
-      primaryDepot = addressBooks.find(
-        (ab: any) => ab.companyName?.includes(depotName) || depotName.includes(ab.companyName)
-      );
-    }
-    
-    console.log("Depot lookup debug:");
-    console.log("Looking for depot name:", depotName);
-    console.log("Found depot:", primaryDepot);
-    console.log("Depot mobile fields:", primaryDepot ? {
-      mobile: primaryDepot.mobile,
-      mobileNumber: primaryDepot.mobileNumber,
-      phoneNumber: primaryDepot.phoneNumber,
-      contact: primaryDepot.contact,
-      phone: primaryDepot.phone
-    } : "No depot found");
-    
-    const depot = primaryDepot;
-    const depotAddress = primaryDepot?.address || "N/A";
-    const depotContact = primaryDepot?.phone || "N/A";
-    const depotEmail = primaryDepot?.email || "N/A";
+    containersWithSize.forEach((container) => {
+      const depotName = container.depotName || "Unknown Depot";
+      
+      // Get container-specific port details from movement history or use shipment POL
+      // First try to get port from container's movement history or associated data
+      let containerPort = pol; // Default to shipment POL
+      
+      // Check if container has specific port information
+      const containerMovements = movementHistory.filter((mh: any) => {
+        const movementContainerNumber = mh?.inventory?.containerNumber;
+        return movementContainerNumber === container.containerNumber;
+      });
+      
+      // If we have movement history for this container, try to extract port info
+      if (containerMovements.length > 0) {
+        // Look for port information in the most recent movement
+        const latestMovement = containerMovements[0]; // Already sorted by date
+        
+        // Try to get port from the movement's shipment data
+        if (latestMovement.shipmentId && allShipmentsData[latestMovement.shipmentId]) {
+          const movementShipment = allShipmentsData[latestMovement.shipmentId];
+          if (movementShipment?.polPort?.portName) {
+            containerPort = movementShipment.polPort.portName;
+          }
+        }
+      }
+      
+      // Use container-specific port or fall back to general port
+      const portName = container.portName || container.port || containerPort;
+      const groupKey = `${depotName}|${portName}`;
+      
+      if (!containerGroups[groupKey]) {
+        containerGroups[groupKey] = [];
+      }
+      containerGroups[groupKey].push({
+        ...container,
+        specificPort: portName // Store the specific port for this container
+      });
+    });
 
-    const containerTypeSummary = groupContainerSizes(allContainers);
-    const containerCount = allContainers.length;
+    console.log("Container groups created:", Object.keys(containerGroups));
+    console.log("Groups details:", containerGroups);
+
+    // Generate a separate page for each depot/port combination
+    let isFirstGroup = true;
+    
+    Object.entries(containerGroups).forEach(([groupKey, groupContainers]) => {
+      const [depotName, portName] = groupKey.split('|');
+      
+      console.log(`Processing group: ${groupKey} with ${groupContainers.length} containers`);
+      
+      // Add new page for subsequent groups
+      if (!isFirstGroup) {
+        doc.addPage();
+      }
+      
+      // More flexible depot lookup - try different matching strategies
+      let depot = addressBooks.find(
+        (ab: any) => ab.companyName === depotName
+      );
+      
+      // If not found by companyName, try by name field
+      if (!depot) {
+        depot = addressBooks.find(
+          (ab: any) => ab.name === depotName
+        );
+      }
+      
+      // If still not found, try partial matching
+      if (!depot) {
+        depot = addressBooks.find(
+          (ab: any) => ab.companyName?.includes(depotName) || depotName.includes(ab.companyName)
+        );
+      }
+      
+      console.log(`Depot lookup for ${depotName}:`, depot);
+      
+      const depotAddress = depot?.address || "N/A";
+      const depotContact = depot?.phone || "N/A";
+      const depotEmail = depot?.email || "N/A";
+
+      const containerTypeSummary = groupContainerSizes(groupContainers);
+      const containerCount = groupContainers.length;
+      
+      // Use group-specific port information for each container group
+      // Get port details specific to this container group
+      let groupPol, groupPod, groupEta, groupEtd;
+      
+      // If this group has containers from a different port, get that port's info
+      const firstContainer = groupContainers[0];
+      const containerSpecificPort = firstContainer.specificPort;
+      
+      if (containerSpecificPort && containerSpecificPort !== pol) {
+        // This group has containers from a different port
+        groupPol = containerSpecificPort;
+        groupPod = containerSpecificPort; // Assume same port for POD if different
+        
+        // Try to get specific ETA/ETD for this port from container movements
+        const containerMovements = movementHistory.filter((mh: any) => {
+          return groupContainers.some(gc => mh?.inventory?.containerNumber === gc.containerNumber);
+        });
+        
+        if (containerMovements.length > 0) {
+          const latestMovement = containerMovements[0];
+          if (latestMovement.shipmentId && allShipmentsData[latestMovement.shipmentId]) {
+            const movementShipment = allShipmentsData[latestMovement.shipmentId];
+            groupEta = movementShipment.etaTopod ? dayjs(movementShipment.etaTopod).format("DD-MM-YYYY") : eta;
+            groupEtd = movementShipment.gsDate ? dayjs(movementShipment.gsDate).format("DD-MM-YYYY") : etd;
+          } else {
+            groupEta = eta;
+            groupEtd = etd;
+          }
+        } else {
+          groupEta = eta;
+          groupEtd = etd;
+        }
+      } else {
+        // Use original shipment port info
+        groupPol = pol;
+        groupPod = pod;
+        groupEta = eta;
+        groupEtd = etd;
+      }
+      
+      // Final destination should match POD for this group
+      const groupFinalDestination = groupPod;
 
                      // --- HEADER SECTION ---
          // Left side - Ristar Logo
@@ -461,14 +551,24 @@ export async function generateCroPdf(
         const shipmentDetailsStartY = 110 + baseYOffset;
         addTextWithSpacing(doc, "SHIPPER:", shipper?.companyName || "N/A", 14, shipmentDetailsStartY, 45);
         addTextWithSpacing(doc, "RELEASE DATE:", releaseDate, 14, shipmentDetailsStartY + 6, 45);
-        addTextWithSpacing(doc, "POL:", pol, 14, shipmentDetailsStartY + 12, 45);
+        addTextWithSpacing(doc, "POL:", groupPol, 14, shipmentDetailsStartY + 12, 45);
         addTextWithSpacing(doc, "FINAL DESTINATION:", finalDestination, 14, shipmentDetailsStartY + 18, 45);
         addTextWithSpacing(doc, "TANK PREP:", shipment.tankPreparation || "N/A", 14, shipmentDetailsStartY + 24, 45);
+        
+        // Add product name below TANK PREP value
+        const productInfo = `${productName}`;
+        addTextWithSpacing(doc, "", productInfo, 14, shipmentDetailsStartY + 30, 45);
+        
+        // Add product type directly below TANK PREP (moved up closer to TANK PREP section)
+        const productTypeInfo = `${productType}`;
+        doc.setFont("arial", "normal");
+        doc.setFontSize(10);
+        doc.text(productTypeInfo, 14, shipmentDetailsStartY + 30);
         // addTextWithSpacing(doc, "REMARK:", "", 14, 140, 45);
 
         // --- RIGHT COLUMN SHIPMENT DETAILS ---
         addTextWithSpacing(doc, "CLOSING DATE/TIME:", "00:00:00", 120, shipmentDetailsStartY, 50);
-        addTextWithSpacing(doc, "POD:", pod, 120, shipmentDetailsStartY + 6, 50);
+        addTextWithSpacing(doc, "POD:", groupPod, 120, shipmentDetailsStartY + 6, 50);
 
         // --- TERMS AND CONDITIONS ---
         const termsStartY = 150 + baseYOffset;
@@ -520,8 +620,8 @@ export async function generateCroPdf(
         doc.setFont("arial", "bold");
         doc.setFontSize(10);
         doc.text("VESSEL / VOY", 40, vesselTableStartY + 5);
-        doc.text("ETD", 110, vesselTableStartY + 5);
-        doc.text("ETA", 160, vesselTableStartY + 5);
+        doc.text("ETA", 110, vesselTableStartY + 5);
+        doc.text("ETD", 160, vesselTableStartY + 5);
 
         // Add horizontal line under headers
         doc.setLineWidth(0.5);
@@ -531,8 +631,8 @@ export async function generateCroPdf(
         doc.setFont("arial", "normal");
         doc.setFontSize(10);
         doc.text(vesselVoyage || "N/A", 40, vesselTableStartY + 14);
-        doc.text(`${pol} ${etd}`, 110, vesselTableStartY + 14);
-        doc.text(`${pod} ${eta}`, 160, vesselTableStartY + 14);
+        doc.text(`${groupPod} ${eta}`, 110, vesselTableStartY + 14);
+        doc.text(`${groupPol} ${etd}`, 160, vesselTableStartY + 14);
 
         // Add horizontal line after vessel table
         doc.line(14, vesselTableStartY + 18, 236, vesselTableStartY + 18);
@@ -559,14 +659,15 @@ export async function generateCroPdf(
         // Add horizontal line under headers
         doc.line(14, containerTableStartY + 3, 236, containerTableStartY + 3);
 
-        // Container data - show all containers in a single table
-        const containersToShow = allContainers.length > 0 ? allContainers : [{ containerNumber: "N/A", capacity: "N/A", tare: "N/A" }];
+        // Container data - show containers from this specific group
+        const containersToShow = groupContainers.length > 0 ? groupContainers : [{ containerNumber: "N/A", capacity: "N/A", tare: "N/A" }];
         
         let currentPage = 1;
         const firstPageMaxY = 280;
         const containerStartY = containerTableStartY + 10;
-        const containersPerFirstPage = Math.floor((firstPageMaxY - containerStartY) / 15); // Containers that fit on first page
-        const containersPerSubsequentPage = Math.floor((280 - 60) / 15); // Containers that fit on subsequent pages (accounting for header)
+        const containerSpacing = 20; // Use consistent spacing of 20 pixels per container
+        const containersPerFirstPage = Math.floor((firstPageMaxY - containerStartY) / containerSpacing); // Containers that fit on first page
+        const containersPerSubsequentPage = Math.floor((280 - 60) / containerSpacing); // Containers that fit on subsequent pages (accounting for header)
         let containersOnCurrentPage = 0;
         
         // All containers on single page or multiple pages if needed
@@ -624,8 +725,8 @@ export async function generateCroPdf(
             doc.line(14, 53, 236, 53);
           }
           
-          // Calculate yPos for current page - fixed spacing for subsequent pages
-          const adjustedYPos = currentPage === 1 ? containerStartY + (containersOnCurrentPage * 20) : 58 + (containersOnCurrentPage * 20);
+          // Calculate yPos for current page - fixed spacing for subsequent pages using consistent spacing
+          const adjustedYPos = currentPage === 1 ? containerStartY + (containersOnCurrentPage * containerSpacing) : 58 + (containersOnCurrentPage * containerSpacing);
           
           // SR NO.
           doc.setFont("arial", "normal");
@@ -684,11 +785,15 @@ export async function generateCroPdf(
         const totalPages = 1 + additionalPages;
         doc.text(`Page ${currentPage} of ${totalPages}`, 220, 295);
 
-        // Add horizontal line after container table (only on first page)
+        // Add horizontal line after container table (only on first page) - moved down with consistent spacing
         const containersOnFirstPageCount = Math.min(containersToShow.length, containersPerFirstPage);
-        const lastContainerY = containerStartY + (containersOnFirstPageCount - 1) * 15 + 12;
+        const lastContainerY = containerStartY + (containersOnFirstPageCount - 1) * containerSpacing + 15; // Use consistent spacing variable
         doc.setLineWidth(0.5);
         doc.line(14, lastContainerY, 236, lastContainerY);
+        
+        // Set flag for next iteration
+        isFirstGroup = false;
+    });
 
     doc.save(`${shipment.houseBL || shipment.masterBL || shipment.jobNumber || 'CRO'}_CRO.pdf`);
   } catch (err) {

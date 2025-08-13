@@ -27,6 +27,6 @@ async function bootstrap() {
     prefix: '/uploads/',
   });
 
-  await app.listen(8000);
+  await app.listen(8000); // Bill of Lading API available
 }
 bootstrap();

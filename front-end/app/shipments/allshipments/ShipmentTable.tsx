@@ -30,7 +30,68 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { generateCroPdf } from './generateCroPdf';
+import { generateBlPdf, type BLType, type BLFormData } from './generateBlPdf';
+
+// Extended BL form data interface to include all form fields
+interface ExtendedBLFormData extends BLFormData {
+  shippersName: string;
+  shippersAddress: string;
+  shippersContactNo: string;
+  shippersEmail: string;
+  consigneeName: string;
+  consigneeAddress: string;
+  consigneeContactNo: string;
+  consigneeEmail: string;
+  notifyPartyName: string;
+  notifyPartyAddress: string;
+  notifyPartyContactNo: string;
+  notifyPartyEmail: string;
+  deliveryAgentName: string;
+  deliveryAgentAddress: string;
+  deliveryAgentContactNo: string;
+  deliveryAgentEmail: string;
+  sealNo: string;
+  grossWt: string;
+  netWt: string;
+  billofLadingDetails: string;
+  freightPrepaid: string;
+  freightPostpaid: string;
+  freightAmount: string;
+  Vat: string;
+  shipmentId: number;
+  blType: BLType;
+}
+
+// Complete BL form data interface for API calls
+interface CompleteBLFormData {
+  shipmentId?: number;
+  shippersName: string;
+  shippersAddress: string;
+  shippersContactNo: string;
+  shippersEmail: string;
+  consigneeName: string;
+  consigneeAddress: string;
+  consigneeContactNo: string;
+  consigneeEmail: string;
+  notifyPartyName: string;
+  notifyPartyAddress: string;
+  notifyPartyContactNo: string;
+  notifyPartyEmail: string;
+  deliveryAgentName: string;
+  deliveryAgentAddress: string;
+  deliveryAgentContactNo: string;
+  deliveryAgentEmail: string;
+  sealNo: string;
+  grossWt: string;
+  netWt: string;
+  billofLadingDetails: string;
+  freightPrepaid: string;
+  freightPostpaid: string;
+  freightAmount: string;
+  Vat: string;
+}
 
 interface Shipment {
   id: number;
@@ -67,6 +128,61 @@ const AllShipmentsPage = () => {
     depotCountry: '',
     depotMobile: '',
     containers: [] as any[]
+  });
+
+  // Add state for BL modal with schema fields
+  const [showBlModal, setShowBlModal] = useState(false);
+  const [currentBlType, setCurrentBlType] = useState<BLType>('original');
+  const [blJustSaved, setBlJustSaved] = useState(false);
+  const [blGenerationStatus, setBlGenerationStatus] = useState<{[key: number]: {hasDraftBlGenerated: boolean, hasOriginalBLGenerated: boolean, firstGenerationDate: string | null}}>({});
+  const [croGenerationStatus, setCroGenerationStatus] = useState<{[key: number]: {hasCroGenerated: boolean, firstCroGenerationDate: string | null}}>({});
+  
+  // Add state to track copy downloads for each shipment and BL type
+  const [blCopyDownloadStatus, setBlCopyDownloadStatus] = useState<{
+    [shipmentId: number]: {
+      [blType in BLType]: {
+        originalDownloaded: boolean;
+        secondCopyDownloaded: boolean;
+        thirdCopyDownloaded: boolean;
+      }
+    }
+  }>({});
+  const [blFormData, setBlFormData] = useState({
+    // Core BillofLading schema fields
+    shippersName: '',
+    shippersAddress: '',
+    shippersContactNo: '',
+    shippersEmail: '',
+    consigneeName: '',
+    consigneeAddress: '',
+    consigneeContactNo: '',
+    consigneeEmail: '',
+    notifyPartyName: '',
+    notifyPartyAddress: '',
+    notifyPartyContactNo: '',
+    notifyPartyEmail: '',
+    containerNos: '',
+    sealNo: '',
+    grossWt: '',
+    netWt: '',
+    billofLadingDetails: '',
+    freightPrepaid: '',
+    freightPostpaid: '',
+    deliveryAgentName: '',
+    deliveryAgentAddress: '',
+    Vat: '',
+    deliveryAgentContactNo: '',
+    deliveryAgentEmail: '',
+    freightAmount: '',
+    // Fields fetched from shipment
+    portOfLoading: '',
+    portOfDischarge: '',
+    vesselNo: '',
+    // Container-specific fields
+    containers: [] as Array<{containerNumber: string, sealNumber: string, grossWt: string, netWt: string}>,
+    // Additional fields for form management
+    shipmentId: 0,
+    blType: 'original' as BLType
   });
 
   const [formData, setFormData] = useState({
@@ -214,8 +330,126 @@ const AllShipmentsPage = () => {
       })));
 
       setShipments(sortedData);
+      
+      // Load BL generation status for all shipments
+      await fetchBlGenerationStatuses(sortedData);
+      
+      // Load CRO generation status for all shipments
+      await fetchCroGenerationStatuses(sortedData);
+      
+      // Initialize copy download status for all shipments by checking database
+      await initializeBlCopyDownloadStatus(sortedData);
     } catch (err) {
       console.error('Failed to fetch shipments', err);
+    }
+  };
+
+  // Function to initialize BL copy download status - check database for existing BLs
+  const initializeBlCopyDownloadStatus = async (shipments: any[]) => {
+    const initialStatus: typeof blCopyDownloadStatus = {};
+    
+    // Initialize with default values
+    shipments.forEach((shipment) => {
+      initialStatus[shipment.id] = {
+        original: {
+          originalDownloaded: false,
+          secondCopyDownloaded: false,
+          thirdCopyDownloaded: false
+        },
+        draft: {
+          originalDownloaded: false,
+          secondCopyDownloaded: false,
+          thirdCopyDownloaded: false
+        },
+        seaway: {
+          originalDownloaded: false,
+          secondCopyDownloaded: false,
+          thirdCopyDownloaded: false
+        }
+      };
+    });
+
+    // Check database for existing BL records to determine originalDownloaded status
+    for (const shipment of shipments) {
+      try {
+        const response = await axios.get(`http://localhost:8000/bill-of-lading/shipment/${shipment.id}`);
+        if (response.data) {
+          // Handle both array and single object responses
+          const blRecords = Array.isArray(response.data) ? response.data : [response.data];
+          
+          // Check each BL type for existing records
+          blRecords.forEach((bl: any) => {
+            if (bl.blType && initialStatus[shipment.id]) {
+              // If BL record exists, mark originalDownloaded as true
+              if (initialStatus[shipment.id][bl.blType as BLType]) {
+                initialStatus[shipment.id][bl.blType as BLType].originalDownloaded = true;
+              }
+            }
+          });
+        }
+      } catch (error) {
+        console.log(`No BL records found for shipment ${shipment.id}`);
+        // Keep default false values for this shipment
+      }
+    }
+    
+    setBlCopyDownloadStatus(initialStatus);
+  };
+
+  // Function to fetch BL generation statuses for all shipments
+  const fetchBlGenerationStatuses = async (shipments: any[]) => {
+    try {
+      const statusMap: {[key: number]: {hasDraftBlGenerated: boolean, hasOriginalBLGenerated: boolean, firstGenerationDate: string | null}} = {};
+      
+      // Fetch BL status for each shipment
+      for (const shipment of shipments) {
+        try {
+          const response = await axios.get(`http://localhost:8000/bill-of-lading/shipment/${shipment.id}`);
+          if (response.data) {
+            statusMap[shipment.id] = {
+              hasDraftBlGenerated: response.data.hasDraftBlGenerated || false,
+              hasOriginalBLGenerated: response.data.hasOriginalBLGenerated || false,
+              firstGenerationDate: response.data.firstGenerationDate || null
+            };
+          } else {
+            statusMap[shipment.id] = {
+              hasDraftBlGenerated: false,
+              hasOriginalBLGenerated: false,
+              firstGenerationDate: null
+            };
+          }
+        } catch (error) {
+          // If no BL exists, set default values
+          statusMap[shipment.id] = {
+            hasDraftBlGenerated: false,
+            hasOriginalBLGenerated: false,
+            firstGenerationDate: null
+          };
+        }
+      }
+      
+      setBlGenerationStatus(statusMap);
+    } catch (error) {
+      console.error('Failed to fetch BL generation statuses:', error);
+    }
+  };
+
+  // Function to fetch CRO generation statuses for all shipments
+  const fetchCroGenerationStatuses = async (shipments: any[]) => {
+    try {
+      const statusMap: {[key: number]: {hasCroGenerated: boolean, firstCroGenerationDate: string | null}} = {};
+      
+      // Set CRO status based on shipment data
+      for (const shipment of shipments) {
+        statusMap[shipment.id] = {
+          hasCroGenerated: shipment.hasCroGenerated || false,
+          firstCroGenerationDate: shipment.firstCroGenerationDate || null
+        };
+      }
+      
+      setCroGenerationStatus(statusMap);
+    } catch (error) {
+      console.error('Failed to fetch CRO generation statuses:', error);
     }
   };
 
@@ -462,12 +696,603 @@ const AllShipmentsPage = () => {
     }
   };
 
-  // Handle downloading PDF with current form data
+  // Handle downloading PDF with current form data and consistent date logic
   const handleDownloadCroPdf = async () => {
-    await generateCroPdf(croFormData.shipmentId, croFormData.containers);
-    setShowCroModal(false);
+    try {
+      // Get the consistent date from generation status or use current date as fallback
+      const generationStatus = croGenerationStatus[croFormData.shipmentId];
+      const consistentDate = generationStatus?.firstCroGenerationDate 
+        ? new Date(generationStatus.firstCroGenerationDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      // Mark CRO as generated and capture first generation date if not already done
+      const response = await axios.post(`http://localhost:8000/shipment/mark-cro-generated/${croFormData.shipmentId}`);
+      const updatedShipment = response.data;
+
+      // Update CRO generation status
+      setCroGenerationStatus(prev => ({
+        ...prev,
+        [croFormData.shipmentId]: {
+          hasCroGenerated: updatedShipment.hasCroGenerated || true,
+          firstCroGenerationDate: updatedShipment.firstCroGenerationDate || consistentDate
+        }
+      }));
+
+      // Generate PDF with consistent date
+      await generateCroPdf(croFormData.shipmentId, croFormData.containers, consistentDate);
+      setShowCroModal(false);
+    } catch (error) {
+      console.error('Error generating CRO PDF:', error);
+      alert('Error generating CRO PDF. Please try again.');
+    }
   };
 
+  // Handle opening BL modal with empty form based on BillofLading schema
+  const handleOpenBlModal = async (shipment: any, blType: BLType) => {
+    setCurrentBlType(blType);
+    setBlJustSaved(false); // Reset save flag initially
+    
+    try {
+      // ALWAYS fetch the latest shipment data first to get current container information
+      const latestShipmentResponse = await axios.get(`http://localhost:8000/shipment/${shipment.id}`);
+      const latestShipment = latestShipmentResponse.data;
+      
+      // Try to fetch existing BL data for this shipment
+      const response = await axios.get(`http://localhost:8000/bill-of-lading/shipment/${shipment.id}`);
+      const existingBl = response.data;
+      
+      if (existingBl) {
+        // Update BL generation status
+        setBlGenerationStatus(prev => ({
+          ...prev,
+          [shipment.id]: {
+            hasDraftBlGenerated: existingBl.hasDraftBlGenerated || false,
+            hasOriginalBLGenerated: existingBl.hasOriginalBLGenerated || false,
+            firstGenerationDate: existingBl.firstGenerationDate || null
+          }
+        }));
+
+        // Parse existing BL data back into container-specific fields
+        const savedSealNumbers = existingBl.sealNo ? existingBl.sealNo.split(', ').filter((s: string) => s.trim()) : [];
+        const savedGrossWeights = existingBl.grossWt ? existingBl.grossWt.split(', ').filter((w: string) => w.trim()) : [];
+        const savedNetWeights = existingBl.netWt ? existingBl.netWt.split(', ').filter((w: string) => w.trim()) : [];
+
+        // IMPORTANT: Use LATEST shipment container data and populate with saved BL data
+        const currentContainers = latestShipment.containers?.map((c: any, index: number) => ({
+          containerNumber: c.containerNumber || '',
+          sealNumber: savedSealNumbers[index] || c.sealNumber || '',
+          grossWt: savedGrossWeights[index] || '',
+          netWt: savedNetWeights[index] || ''
+        })) || [];
+
+        setBlFormData({
+          shipmentId: shipment.id,
+          blType: blType,
+          // Fill with existing BL data for other fields
+          shippersName: existingBl.shippersName || '',
+          shippersAddress: existingBl.shippersAddress || '',
+          shippersContactNo: existingBl.shippersContactNo || '',
+          shippersEmail: existingBl.shippersEmail || '',
+          consigneeName: existingBl.consigneeName || '',
+          consigneeAddress: existingBl.consigneeAddress || '',
+          consigneeContactNo: existingBl.consigneeContactNo || '',
+          consigneeEmail: existingBl.consigneeEmail || '',
+          notifyPartyName: existingBl.notifyPartyName || '',
+          notifyPartyAddress: existingBl.notifyPartyAddress || '',
+          notifyPartyContactNo: existingBl.notifyPartyContactNo || '',
+          notifyPartyEmail: existingBl.notifyPartyEmail || '',
+          // Use CURRENT container data from latest shipment, not old BL data
+          containerNos: currentContainers.map((c: any) => c.containerNumber).join(', '),
+          sealNo: existingBl.sealNo || '',
+          grossWt: existingBl.grossWt || '',
+          netWt: existingBl.netWt || '',
+          billofLadingDetails: existingBl.billofLadingDetails || '',
+          freightPrepaid: existingBl.freightPrepaid || '',
+          freightPostpaid: existingBl.freightPostpaid || '',
+          deliveryAgentName: existingBl.deliveryAgentName || '',
+          deliveryAgentAddress: existingBl.deliveryAgentAddress || '',
+          Vat: existingBl.Vat || '',
+          deliveryAgentContactNo: existingBl.deliveryAgentContactNo || '',
+          deliveryAgentEmail: existingBl.deliveryAgentEmail || '',
+          freightAmount: existingBl.freightAmount || '',
+          // Fields fetched from LATEST shipment data
+          portOfLoading: existingBl.portOfLoading || latestShipment.polPort?.portName || '',
+          portOfDischarge: existingBl.portOfDischarge || latestShipment.podPort?.portName || '',
+          vesselNo: existingBl.vesselNo || latestShipment.vesselName || '',
+          // Container-specific fields - use CURRENT container data
+          containers: currentContainers
+        });
+        // Set the flag to true so download button is visible for existing BL
+        setBlJustSaved(true);
+      } else {
+        // Initialize BL generation status as not generated
+        setBlGenerationStatus(prev => ({
+          ...prev,
+          [shipment.id]: {
+            hasDraftBlGenerated: false,
+            hasOriginalBLGenerated: false,
+            firstGenerationDate: null
+          }
+        }));
+
+        // Show empty form for first time using LATEST shipment data
+        setBlFormData({
+          shipmentId: shipment.id,
+          blType: blType,
+          // Empty form fields based on BillofLading schema
+          shippersName: '',
+          shippersAddress: '',
+          shippersContactNo: '',
+          shippersEmail: '',
+          consigneeName: '',
+          consigneeAddress: '',
+          consigneeContactNo: '',
+          consigneeEmail: '',
+          notifyPartyName: '',
+          notifyPartyAddress: '',
+          notifyPartyContactNo: '',
+          notifyPartyEmail: '',
+          containerNos: latestShipment.containers?.map((c: any) => c.containerNumber).join(', ') || '',
+          sealNo: '',
+          grossWt: '',
+          netWt: '',
+          billofLadingDetails: '',
+          freightPrepaid: '',
+          freightPostpaid: '',
+          deliveryAgentName: '',
+          deliveryAgentAddress: '',
+          Vat: '',
+          deliveryAgentContactNo: '',
+          deliveryAgentEmail: '',
+          freightAmount: '',
+          // Fields fetched from LATEST shipment data
+          portOfLoading: latestShipment.polPort?.portName || '',
+          portOfDischarge: latestShipment.podPort?.portName || '',
+          vesselNo: latestShipment.vesselName || '',
+          // Container-specific fields - use LATEST shipment data
+          containers: latestShipment.containers?.map((c: any) => ({
+            containerNumber: c.containerNumber || '',
+            sealNumber: c.sealNumber || '',
+            grossWt: '',
+            netWt: ''
+          })) || []
+        });
+        // Keep blJustSaved as false for new forms
+        setBlJustSaved(false);
+      }
+    } catch (error) {
+      console.log('No existing BL found, showing empty form with latest shipment data');
+      
+      // Always fetch latest shipment data even in catch block
+      try {
+        const latestShipmentResponse = await axios.get(`http://localhost:8000/shipment/${shipment.id}`);
+        const latestShipment = latestShipmentResponse.data;
+        
+        // Show empty form with LATEST shipment data if no existing data or error occurred
+        setBlFormData({
+          shipmentId: shipment.id,
+          blType: blType,
+          // Empty form fields based on BillofLading schema
+          shippersName: '',
+          shippersAddress: '',
+          shippersContactNo: '',
+          shippersEmail: '',
+          consigneeName: '',
+          consigneeAddress: '',
+          consigneeContactNo: '',
+          consigneeEmail: '',
+          notifyPartyName: '',
+          notifyPartyAddress: '',
+          notifyPartyContactNo: '',
+          notifyPartyEmail: '',
+          containerNos: latestShipment.containers?.map((c: any) => c.containerNumber).join(', ') || '',
+          sealNo: '',
+          grossWt: '',
+          netWt: '',
+          billofLadingDetails: '',
+          freightPrepaid: '',
+          freightPostpaid: '',
+          deliveryAgentName: '',
+          deliveryAgentAddress: '',
+          Vat: '',
+          deliveryAgentContactNo: '',
+          deliveryAgentEmail: '',
+          freightAmount: '',
+          // Fields fetched from LATEST shipment data
+          portOfLoading: latestShipment.polPort?.portName || '',
+          portOfDischarge: latestShipment.podPort?.portName || '',
+          vesselNo: latestShipment.vesselName || '',
+          // Container-specific fields - use LATEST shipment data
+          containers: latestShipment.containers?.map((c: any) => ({
+            containerNumber: c.containerNumber || '',
+            sealNumber: c.sealNumber || '',
+            grossWt: '',
+            netWt: ''
+          })) || []
+        });
+      } catch (shipmentError) {
+        console.error('Error fetching latest shipment data:', shipmentError);
+        // Fallback to original shipment data if latest fetch fails
+        setBlFormData({
+          shipmentId: shipment.id,
+          blType: blType,
+          // Empty form fields based on BillofLading schema
+          shippersName: '',
+          shippersAddress: '',
+          shippersContactNo: '',
+          shippersEmail: '',
+          consigneeName: '',
+          consigneeAddress: '',
+          consigneeContactNo: '',
+          consigneeEmail: '',
+          notifyPartyName: '',
+          notifyPartyAddress: '',
+          notifyPartyContactNo: '',
+          notifyPartyEmail: '',
+          containerNos: shipment.containers?.map((c: any) => c.containerNumber).join(', ') || '',
+          sealNo: '',
+          grossWt: '',
+          netWt: '',
+          billofLadingDetails: '',
+          freightPrepaid: '',
+          freightPostpaid: '',
+          deliveryAgentName: '',
+          deliveryAgentAddress: '',
+          Vat: '',
+          deliveryAgentContactNo: '',
+          deliveryAgentEmail: '',
+          freightAmount: '',
+          // Fields fetched from original shipment data
+          portOfLoading: shipment.polPort?.portName || '',
+          portOfDischarge: shipment.podPort?.portName || '',
+          vesselNo: shipment.vesselName || '',
+          // Container-specific fields
+          containers: shipment.containers?.map((c: any) => ({
+            containerNumber: c.containerNumber || '',
+            sealNumber: c.sealNumber || '',
+            grossWt: '',
+            netWt: ''
+          })) || []
+        });
+      }
+      // Keep blJustSaved as false for new forms
+      setBlJustSaved(false);
+    }
+    
+    setShowBlModal(true);
+  };
+
+  // Handle saving BL form data
+  const handleSaveBlData = async () => {
+    try {
+      // Debug: Log the current form data to see what we're sending
+      console.log('Current blFormData before save:', blFormData);
+      console.log('Individual container data:', blFormData.containers);
+      console.log('Aggregated grossWt:', blFormData.grossWt);
+      console.log('Aggregated netWt:', blFormData.netWt);
+      console.log('Aggregated sealNo:', blFormData.sealNo);
+      console.log('Aggregated containerNos:', blFormData.containerNos);
+
+      // Create the payload without shipmentId for the new endpoint
+      const blPayload = {
+        shippersName: blFormData.shippersName,
+        shippersAddress: blFormData.shippersAddress,
+        shippersContactNo: blFormData.shippersContactNo,
+        shippersEmail: blFormData.shippersEmail,
+        consigneeName: blFormData.consigneeName,
+        consigneeAddress: blFormData.consigneeAddress,
+        consigneeContactNo: blFormData.consigneeContactNo,
+        consigneeEmail: blFormData.consigneeEmail,
+        notifyPartyName: blFormData.notifyPartyName,
+        notifyPartyAddress: blFormData.notifyPartyAddress,
+        notifyPartyContactNo: blFormData.notifyPartyContactNo,
+        notifyPartyEmail: blFormData.notifyPartyEmail,
+        containerNos: blFormData.containerNos,
+        sealNo: blFormData.sealNo,
+        grossWt: blFormData.grossWt,
+        netWt: blFormData.netWt,
+        billofLadingDetails: blFormData.billofLadingDetails,
+        freightPrepaid: blFormData.freightPrepaid,
+        freightPostpaid: blFormData.freightPostpaid,
+        deliveryAgentName: blFormData.deliveryAgentName,
+        deliveryAgentAddress: blFormData.deliveryAgentAddress,
+        Vat: blFormData.Vat,
+        deliveryAgentContactNo: blFormData.deliveryAgentContactNo,
+        deliveryAgentEmail: blFormData.deliveryAgentEmail,
+        freightAmount: blFormData.freightAmount,
+        portOfLoading: blFormData.portOfLoading,
+        portOfDischarge: blFormData.portOfDischarge,
+        vesselNo: blFormData.vesselNo
+      };
+
+      // Debug: Log the payload being sent to backend
+      console.log('Payload being sent to backend:', blPayload);
+
+      // Use the new generate endpoint that handles creation/update with generation tracking
+      const response = await axios.post(`http://localhost:8000/bill-of-lading/generate/${blFormData.shipmentId}`, blPayload);
+      const savedBl = response.data;
+
+      console.log('Bill of Lading saved/updated successfully:', savedBl);
+      
+      // Update BL generation status with the returned data
+      setBlGenerationStatus(prev => ({
+        ...prev,
+        [blFormData.shipmentId]: {
+          hasDraftBlGenerated: savedBl.hasDraftBlGenerated || true,
+          hasOriginalBLGenerated: savedBl.hasOriginalBLGenerated || false,
+          firstGenerationDate: savedBl.firstGenerationDate || new Date().toISOString()
+        }
+      }));
+
+      alert(`${currentBlType === 'original' ? 'Original' : currentBlType === 'draft' ? 'Draft' : 'Seaway'} Bill of Lading saved successfully!`);
+      setBlJustSaved(true); // Show download button and enable update mode
+      
+      // Close the modal after a short delay to allow user to see the success message
+      setTimeout(() => {
+        setShowBlModal(false);
+      }, 1000);
+    } catch (error) {
+      console.error('Error saving Bill of Lading:', error);
+      alert('Error saving Bill of Lading. Please try again.');
+    }
+  };
+
+  // Handle editing shipment from BL modal
+  const handleEditShipmentFromBl = async () => {
+    try {
+      // Find the current shipment data
+      const shipmentToEdit = shipments.find(s => s.id === blFormData.shipmentId);
+      if (shipmentToEdit) {
+        // Close BL modal first
+        setShowBlModal(false);
+        // Use existing handleEdit function to open edit form
+        await handleEdit(shipmentToEdit);
+      }
+    } catch (error) {
+      console.error('Error opening edit form:', error);
+    }
+  };
+
+  // Handle downloading BL PDF with current form data
+  const handleDownloadBlPdf = async () => {
+    try {
+      // Get the consistent date from generation status or use current date as fallback
+      const generationStatus = blGenerationStatus[blFormData.shipmentId];
+      const consistentDate = generationStatus?.firstGenerationDate 
+        ? new Date(generationStatus.firstGenerationDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      // Convert form data to match BLFormData interface structure
+      const pdfData: BLFormData = {
+        shipmentId: blFormData.shipmentId,
+        blType: currentBlType,
+        date: consistentDate,
+        blNumber: `${currentBlType.toUpperCase()}-${Date.now()}`,
+        shipper: blFormData.shippersName,
+        consignee: blFormData.consigneeName,
+        notifyParty: blFormData.notifyPartyName,
+        placeOfAcceptance: '',
+        portOfLoading: '',
+        portOfDischarge: '',
+        placeOfDelivery: '',
+        vesselVoyageNo: '',
+        containerInfo: '',
+        marksNumbers: '',
+        descriptionOfGoods: blFormData.billofLadingDetails,
+        grossWeight: blFormData.grossWt,
+        netWeight: blFormData.netWt,
+        shippingMarks: '',
+        freightCharges: blFormData.freightAmount,
+        freightPayableAt: '',
+        numberOfOriginals: '',
+        placeOfIssue: '',
+        dateOfIssue: consistentDate,
+        containers: []
+      };
+      
+      await generateBlPdf(currentBlType, pdfData, blFormData, 0); // 0 = original copy
+      
+      // If this is an original BL download and hasn't been generated before, mark it as generated
+      if (currentBlType === 'original' && !blGenerationStatus[blFormData.shipmentId]?.hasOriginalBLGenerated) {
+        try {
+          await axios.post(`http://localhost:8000/bill-of-lading/mark-original-generated/${blFormData.shipmentId}`);
+          
+          // Update the local state to reflect that original BL has been generated
+          setBlGenerationStatus(prev => ({
+            ...prev,
+            [blFormData.shipmentId]: {
+              ...prev[blFormData.shipmentId],
+              hasOriginalBLGenerated: true
+            }
+          }));
+        } catch (error) {
+          console.error('Error marking original BL as generated:', error);
+          // Don't block the download process if this fails
+        }
+      }
+      
+      // Mark original as downloaded in local state (for UI purposes)
+      setBlCopyDownloadStatus(prev => ({
+        ...prev,
+        [blFormData.shipmentId]: {
+          ...prev[blFormData.shipmentId],
+          [currentBlType]: {
+            ...prev[blFormData.shipmentId]?.[currentBlType],
+            originalDownloaded: true,
+            secondCopyDownloaded: false,
+            thirdCopyDownloaded: false
+          }
+        }
+      }));
+      
+      setShowBlModal(false);
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert('Error generating PDF. Please try again.');
+    }
+  };
+
+  // Handler for 2nd copy download
+  const handleDownload2ndCopyBlPdf = async (shipmentId: number, blType: BLType) => {
+    try {
+      // Fetch the latest shipment data to get current container information
+      const latestShipmentResponse = await axios.get(`http://localhost:8000/shipment/${shipmentId}`);
+      const latestShipment = latestShipmentResponse.data;
+      
+      // Fetch the existing BL data for this shipment
+      const existingBlResponse = await axios.get(`http://localhost:8000/bill-of-lading/shipment/${shipmentId}`);
+      const existingBl = existingBlResponse.data;
+      
+      if (!existingBl) {
+        alert('Original BL data not found. Please generate the original BL first.');
+        return;
+      }
+
+      const generationStatus = blGenerationStatus[shipmentId];
+      const consistentDate = generationStatus?.firstGenerationDate 
+        ? new Date(generationStatus.firstGenerationDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      // Create BL data that combines existing BL info with current container data
+      const blDataWithCurrentContainers = {
+        ...existingBl,
+        // Update container information with latest shipment data
+        containerNos: latestShipment.containers?.map((c: any) => c.containerNumber).join(', ') || existingBl.containerNos,
+        containers: latestShipment.containers?.map((c: any) => ({
+          containerNumber: c.containerNumber || '',
+          sealNumber: c.sealNumber || '',
+          grossWt: '', // Keep original weights or reset as needed
+          netWt: ''
+        })) || []
+      };
+
+      const pdfData: BLFormData = {
+        shipmentId: shipmentId,
+        blType: blType,
+        date: consistentDate,
+        blNumber: `${blType.toUpperCase()}-${Date.now()}`,
+        shipper: existingBl.shippersName,
+        consignee: existingBl.consigneeName,
+        notifyParty: existingBl.notifyPartyName,
+        placeOfAcceptance: '',
+        portOfLoading: '',
+        portOfDischarge: '',
+        placeOfDelivery: '',
+        vesselVoyageNo: '',
+        containerInfo: '',
+        marksNumbers: '',
+        descriptionOfGoods: existingBl.billofLadingDetails,
+        grossWeight: existingBl.grossWt,
+        netWeight: existingBl.netWt,
+        shippingMarks: '',
+        freightCharges: existingBl.freightAmount,
+        freightPayableAt: '',
+        numberOfOriginals: '',
+        placeOfIssue: '',
+        dateOfIssue: consistentDate,
+        containers: []
+      };
+      
+      await generateBlPdf(blType, pdfData, blDataWithCurrentContainers, 1); // 1 = 2nd copy
+      
+      // Mark 2nd copy as downloaded
+      setBlCopyDownloadStatus(prev => ({
+        ...prev,
+        [shipmentId]: {
+          ...prev[shipmentId],
+          [blType]: {
+            ...prev[shipmentId]?.[blType],
+            secondCopyDownloaded: true
+          }
+        }
+      }));
+      
+    } catch (error) {
+      console.error('Error generating 2nd copy PDF:', error);
+      alert('Error generating 2nd copy PDF. Please try again.');
+    }
+  };
+
+  // Handler for 3rd copy download
+  const handleDownload3rdCopyBlPdf = async (shipmentId: number, blType: BLType) => {
+    try {
+      // Fetch the latest shipment data to get current container information
+      const latestShipmentResponse = await axios.get(`http://localhost:8000/shipment/${shipmentId}`);
+      const latestShipment = latestShipmentResponse.data;
+      
+      // Fetch the existing BL data for this shipment
+      const existingBlResponse = await axios.get(`http://localhost:8000/bill-of-lading/shipment/${shipmentId}`);
+      const existingBl = existingBlResponse.data;
+      
+      if (!existingBl) {
+        alert('Original BL data not found. Please generate the original BL first.');
+        return;
+      }
+
+      const generationStatus = blGenerationStatus[shipmentId];
+      const consistentDate = generationStatus?.firstGenerationDate 
+        ? new Date(generationStatus.firstGenerationDate).toISOString().split('T')[0]
+        : new Date().toISOString().split('T')[0];
+
+      // Create BL data that combines existing BL info with current container data
+      const blDataWithCurrentContainers = {
+        ...existingBl,
+        // Update container information with latest shipment data
+        containerNos: latestShipment.containers?.map((c: any) => c.containerNumber).join(', ') || existingBl.containerNos,
+        containers: latestShipment.containers?.map((c: any) => ({
+          containerNumber: c.containerNumber || '',
+          sealNumber: c.sealNumber || '',
+          grossWt: '', // Keep original weights or reset as needed
+          netWt: ''
+        })) || []
+      };
+
+      const pdfData: BLFormData = {
+        shipmentId: shipmentId,
+        blType: blType,
+        date: consistentDate,
+        blNumber: `${blType.toUpperCase()}-${Date.now()}`,
+        shipper: existingBl.shippersName,
+        consignee: existingBl.consigneeName,
+        notifyParty: existingBl.notifyPartyName,
+        placeOfAcceptance: '',
+        portOfLoading: '',
+        portOfDischarge: '',
+        placeOfDelivery: '',
+        vesselVoyageNo: '',
+        containerInfo: '',
+        marksNumbers: '',
+        descriptionOfGoods: existingBl.billofLadingDetails,
+        grossWeight: existingBl.grossWt,
+        netWeight: existingBl.netWt,
+        shippingMarks: '',
+        freightCharges: existingBl.freightAmount,
+        freightPayableAt: '',
+        numberOfOriginals: '',
+        placeOfIssue: '',
+        dateOfIssue: consistentDate,
+        containers: []
+      };
+      
+      await generateBlPdf(blType, pdfData, blDataWithCurrentContainers, 2); // 2 = 3rd copy
+      
+      // Mark 3rd copy as downloaded
+      setBlCopyDownloadStatus(prev => ({
+        ...prev,
+        [shipmentId]: {
+          ...prev[shipmentId],
+          [blType]: {
+            ...prev[shipmentId]?.[blType],
+            thirdCopyDownloaded: true
+          }
+        }
+      }));
+      
+    } catch (error) {
+      console.error('Error generating 3rd copy PDF:', error);
+      alert('Error generating 3rd copy PDF. Please try again.');
+    }
+  };
 
   return (
     <div className="px-4 pt-4 pb-4 bg-white dark:bg-black min-h-screen">
@@ -706,9 +1531,40 @@ const AllShipmentsPage = () => {
                           <DropdownMenuItem onClick={() => handleOpenCroModal(shipment)} className='cursor-pointer'>
                             Generate CRO
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleDownloadPDF(shipment.id, shipment.containers ?? [])} className='cursor-pointer'>
-                            Generate BL
+                          {/* Always show Draft BL option */}
+                          <DropdownMenuItem onClick={() => handleOpenBlModal(shipment, 'draft')} className='cursor-pointer'>
+                            Generate Draft BL
                           </DropdownMenuItem>
+                          {/* Show Original and Seaway BL options only after draft has been generated at least once */}
+                          {blGenerationStatus[shipment.id]?.hasDraftBlGenerated && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleOpenBlModal(shipment, 'original')} className='cursor-pointer'>
+                                Generate Original BL
+                              </DropdownMenuItem>
+                              <DropdownMenuItem onClick={() => handleOpenBlModal(shipment, 'seaway')} className='cursor-pointer'>
+                                Generate Seaway BL
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          
+                          {/* Copy download options - show only for Original BL type */}
+                          {/* Original BL Copy Options - only show for original BL */}
+                          {blGenerationStatus[shipment.id]?.hasOriginalBLGenerated && (
+                            <>
+                              <DropdownMenuItem 
+                                onClick={() => handleDownload2ndCopyBlPdf(shipment.id, 'original')} 
+                                className='cursor-pointer text-blue-600'
+                              >
+                                Download Original BL 2nd Copy
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => handleDownload3rdCopyBlPdf(shipment.id, 'original')} 
+                                className='cursor-pointer text-blue-600'
+                              >
+                                Download Original BL 3rd Copy
+                              </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </TableCell>
@@ -912,7 +1768,7 @@ const AllShipmentsPage = () => {
               <div className="bg-gray-50 rounded-lg p-4 border dark:border-neutral-700 dark:bg-neutral-800">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                   {croFormData.containers.length > 0 ? (
-                    croFormData.containers.map((container, index) => (
+                    croFormData.containers.map((container: any, index: number) => (
                       <div key={index} className="bg-white rounded-md p-3 border border-gray-200 shadow-sm dark:bg-neutral-700 dark:border-neutral-600">
                         <div className="space-y-1">
                           <div className="font-medium text-sm text-gray-900 dark:text-white">
@@ -955,6 +1811,442 @@ const AllShipmentsPage = () => {
             <Button onClick={handleDownloadCroPdf} className='cursor-pointer'>
               Download PDF
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* BL Form Modal */}
+      <Dialog open={showBlModal} onOpenChange={setShowBlModal}>
+        <DialogContent 
+          className="max-h-[90vh] overflow-y-auto !w-[95vw] !max-w-[1400px] bl-modal-content" 
+          style={{ 
+            width: '95vw !important', 
+            maxWidth: '1400px !important',
+            minWidth: '95vw',
+            '--radix-dialog-content-width': '95vw',
+            '--radix-dialog-content-max-width': '1400px'
+          } as React.CSSProperties}
+        >
+          <DialogHeader>
+            <DialogTitle>Generate {currentBlType === 'original' ? 'Original' : currentBlType === 'draft' ? 'Draft' : 'Seaway'} Bill of Lading</DialogTitle>
+          </DialogHeader>
+          
+          <div className="grid gap-4 py-4">
+            {/* Shipper Information */}
+            <hr className="dark:border-black"/>
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Shipper Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="shippersName">Shipper Name *</Label>
+                  <Input
+                    id="shippersName"
+                    value={blFormData.shippersName}
+                    onChange={(e) => setBlFormData({...blFormData, shippersName: e.target.value})}
+                    placeholder="Enter shipper name"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shippersAddress">Shipper Address</Label>
+                  <Input
+                    id="shippersAddress"
+                    value={blFormData.shippersAddress}
+                    onChange={(e) => setBlFormData({...blFormData, shippersAddress: e.target.value})}
+                    placeholder="Enter shipper address"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="space-y-2">
+                  <Label htmlFor="shippersContactNo">Shipper Contact No</Label>
+                  <Input
+                    id="shippersContactNo"
+                    value={blFormData.shippersContactNo}
+                    onChange={(e) => setBlFormData({...blFormData, shippersContactNo: e.target.value})}
+                    placeholder="Enter shipper contact number"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="shippersEmail">Shipper Email</Label>
+                  <Input
+                    id="shippersEmail"
+                    value={blFormData.shippersEmail}
+                    onChange={(e) => setBlFormData({...blFormData, shippersEmail: e.target.value})}
+                    placeholder="Enter shipper email"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Consignee Information */}
+            <hr className="border-black" />
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Consignee Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="consigneeName">Consignee Name *</Label>
+                  <Input
+                    id="consigneeName"
+                    value={blFormData.consigneeName}
+                    onChange={(e) => setBlFormData({...blFormData, consigneeName: e.target.value})}
+                    placeholder="Enter consignee name"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="consigneeAddress">Consignee Address</Label>
+                  <Input
+                    id="consigneeAddress"
+                    value={blFormData.consigneeAddress}
+                    onChange={(e) => setBlFormData({...blFormData, consigneeAddress: e.target.value})}
+                    placeholder="Enter consignee address"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="space-y-2">
+                  <Label htmlFor="consigneeContactNo">Consignee Contact No</Label>
+                  <Input
+                    id="consigneeContactNo"
+                    value={blFormData.consigneeContactNo}
+                    onChange={(e) => setBlFormData({...blFormData, consigneeContactNo: e.target.value})}
+                    placeholder="Enter consignee contact number"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="consigneeEmail">Consignee Email</Label>
+                  <Input
+                    id="consigneeEmail"
+                    value={blFormData.consigneeEmail}
+                    onChange={(e) => setBlFormData({...blFormData, consigneeEmail: e.target.value})}
+                    placeholder="Enter consignee email"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Notify Party Information */}
+            <hr className="border-black" />
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Notify Party Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="notifyPartyName">Notify Party Name *</Label>
+                  <Input
+                    id="notifyPartyName"
+                    value={blFormData.notifyPartyName}
+                    onChange={(e) => setBlFormData({...blFormData, notifyPartyName: e.target.value})}
+                    placeholder="Enter notify party name"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notifyPartyAddress">Notify Party Address</Label>
+                  <Input
+                    id="notifyPartyAddress"
+                    value={blFormData.notifyPartyAddress}
+                    onChange={(e) => setBlFormData({...blFormData, notifyPartyAddress: e.target.value})}
+                    placeholder="Enter notify party address"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 mt-3">
+                <div className="space-y-2">
+                  <Label htmlFor="notifyPartyContactNo">Notify Party Contact No</Label>
+                  <Input
+                    id="notifyPartyContactNo"
+                    value={blFormData.notifyPartyContactNo}
+                    onChange={(e) => setBlFormData({...blFormData, notifyPartyContactNo: e.target.value})}
+                    placeholder="Enter notify party contact number"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="notifyPartyEmail">Notify Party Email</Label>
+                  <Input
+                    id="notifyPartyEmail"
+                    value={blFormData.notifyPartyEmail}
+                    onChange={(e) => setBlFormData({...blFormData, notifyPartyEmail: e.target.value})}
+                    placeholder="Enter notify party email"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Delivery Agent Information */}
+            <hr className="border-black" />
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Delivery Agent Information</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryAgentName">Delivery Agent Name *</Label>
+                  <Input
+                    id="deliveryAgentName"
+                    value={blFormData.deliveryAgentName}
+                    onChange={(e) => setBlFormData({...blFormData, deliveryAgentName: e.target.value})}
+                    placeholder="Enter delivery agent name"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryAgentAddress">Delivery Agent Address</Label>
+                  <Input
+                    id="deliveryAgentAddress"
+                    value={blFormData.deliveryAgentAddress}
+                    onChange={(e) => setBlFormData({...blFormData, deliveryAgentAddress: e.target.value})}
+                    placeholder="Enter delivery agent address"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4 mt-3">
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryAgentContactNo">Delivery Agent Contact No</Label>
+                  <Input
+                    id="deliveryAgentContactNo"
+                    value={blFormData.deliveryAgentContactNo}
+                    onChange={(e) => setBlFormData({...blFormData, deliveryAgentContactNo: e.target.value})}
+                    placeholder="Enter delivery agent contact number"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="deliveryAgentEmail">Delivery Agent Email</Label>
+                  <Input
+                    id="deliveryAgentEmail"
+                    value={blFormData.deliveryAgentEmail}
+                    onChange={(e) => setBlFormData({...blFormData, deliveryAgentEmail: e.target.value})}
+                    placeholder="Enter delivery agent email"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vat">VAT</Label>
+                  <Input
+                    id="vat"
+                    value={blFormData.Vat}
+                    onChange={(e) => setBlFormData({...blFormData, Vat: e.target.value})}
+                    placeholder="Enter VAT amount"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Port & Vessel Information */}
+            <hr className="border-black" />
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Port & Vessel Information</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="portOfLoading">Port of Loading</Label>
+                  <Input
+                    id="portOfLoading"
+                    value={blFormData.portOfLoading}
+                    onChange={(e) => setBlFormData({...blFormData, portOfLoading: e.target.value})}
+                    placeholder="Port of loading"
+                    className="bg-white dark:bg-black"
+                    readOnly  
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="portOfDischarge">Port of Discharge</Label>
+                  <Input
+                    id="portOfDischarge"
+                    value={blFormData.portOfDischarge}
+                    onChange={(e) => setBlFormData({...blFormData, portOfDischarge: e.target.value})}
+                    placeholder="Port of discharge"
+                    className="bg-white dark:bg-black"
+                    readOnly
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="vesselNo">Vessel No</Label>
+                  <Input
+                    id="vesselNo"
+                    value={blFormData.vesselNo}
+                    onChange={(e) => setBlFormData({...blFormData, vesselNo: e.target.value})}
+                    placeholder="Vessel number"
+                    className="bg-white dark:bg-black"
+                    readOnly
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Cargo Information */}
+            <hr className="border-black" />
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Cargo Information</h3>
+              {/* Dynamic Container and Seal Number fields */}
+              <div className="space-y-4">
+                {blFormData.containers.map((container, index) => (
+                  <div key={index} className="grid grid-cols-4 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor={`containerNo_${index}`}>
+                        {index === 0 ? 'Container No(s)' : `Container No ${index + 1}`}
+                      </Label>
+                      <Input
+                        id={`containerNo_${index}`}
+                        value={container.containerNumber}
+                        onChange={(e) => {
+                          const updatedContainers = [...blFormData.containers];
+                          updatedContainers[index].containerNumber = e.target.value;
+                          setBlFormData({
+                            ...blFormData, 
+                            containers: updatedContainers,
+                            containerNos: updatedContainers.map(c => c.containerNumber).join(', ')
+                          });
+                        }}
+                        placeholder="Container number"
+                        className="bg-white dark:bg-black"
+                        readOnly
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`grossWt_${index}`}>
+                        {index === 0 ? 'Gross Weight *' : `Gross Wt ${index + 1} *`}
+                      </Label>
+                      <Input
+                        id={`grossWt_${index}`}
+                        value={container.grossWt || ''}
+                        onChange={(e) => {
+                          const updatedContainers = [...blFormData.containers];
+                          updatedContainers[index].grossWt = e.target.value;
+                          setBlFormData({
+                            ...blFormData, 
+                            containers: updatedContainers,
+                            grossWt: updatedContainers.map(c => c.grossWt || '').join(', ')
+                          });
+                        }}
+                        placeholder="Enter gross weight"
+                        className="bg-white dark:bg-black"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`netWt_${index}`}>
+                        {index === 0 ? 'Net Weight *' : `Net Wt ${index + 1} *`}
+                      </Label>
+                      <Input
+                        id={`netWt_${index}`}
+                        value={container.netWt || ''}
+                        onChange={(e) => {
+                          const updatedContainers = [...blFormData.containers];
+                          updatedContainers[index].netWt = e.target.value;
+                          setBlFormData({
+                            ...blFormData, 
+                            containers: updatedContainers,
+                            netWt: updatedContainers.map(c => c.netWt || '').join(', ')
+                          });
+                        }}
+                        placeholder="Enter net weight"
+                        className="bg-white dark:bg-black"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor={`sealNo_${index}`}>
+                        {index === 0 ? 'Seal No *' : `Seal No ${index + 1} *`}
+                      </Label>
+                      <Input
+                        id={`sealNo_${index}`}
+                        value={container.sealNumber}
+                        onChange={(e) => {
+                          const updatedContainers = [...blFormData.containers];
+                          updatedContainers[index].sealNumber = e.target.value;
+                          setBlFormData({
+                            ...blFormData, 
+                            containers: updatedContainers,
+                            sealNo: updatedContainers.map(c => c.sealNumber || '').join(', ')
+                          });
+                        }}
+                        placeholder="Enter seal number"
+                        className="bg-white dark:bg-black"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-3">
+                <div className="space-y-2">
+                  <Label htmlFor="billofLadingDetails">Bill of Lading Details</Label>
+                  <Textarea
+                    id="billofLadingDetails"
+                    value={blFormData.billofLadingDetails}
+                    onChange={(e) => setBlFormData({...blFormData, billofLadingDetails: e.target.value})}
+                    placeholder="Enter bill of lading details (multiple lines supported)"
+                    className="bg-white dark:bg-black min-h-[100px] resize-vertical"
+                    rows={4}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Freight Information */}
+            <hr className="border-black" />
+            <div className="mt-4">
+              <h3 className="text-lg font-semibold mb-3">Freight Information</h3>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="freightPrepaid">Freight Prepaid</Label>
+                  <Input
+                    id="freightPrepaid"
+                    value={blFormData.freightPrepaid}
+                    onChange={(e) => setBlFormData({...blFormData, freightPrepaid: e.target.value})}
+                    placeholder="Enter freight prepaid amount"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="freightPostpaid">Freight Postpaid</Label>
+                  <Input
+                    id="freightPostpaid"
+                    value={blFormData.freightPostpaid}
+                    onChange={(e) => setBlFormData({...blFormData, freightPostpaid: e.target.value})}
+                    placeholder="Enter freight postpaid amount"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="freightAmount">Freight Amount</Label>
+                  <Input
+                    id="freightAmount"
+                    value={blFormData.freightAmount}
+                    onChange={(e) => setBlFormData({...blFormData, freightAmount: e.target.value})}
+                    placeholder="Enter freight amount"
+                    className="bg-white dark:bg-black"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter className="space-x-2">
+            <Button variant="outline" onClick={() => setShowBlModal(false)} className='cursor-pointer'>
+              Cancel
+            </Button>
+            {!blJustSaved ? (
+              <Button onClick={handleSaveBlData} className='cursor-pointer'>
+                Save Bill of Lading
+              </Button>
+            ) : (
+              <>
+                <Button onClick={handleSaveBlData} variant="outline" className='cursor-pointer'>
+                  Update Bill of Lading
+                </Button>
+                <Button onClick={handleDownloadBlPdf} className='cursor-pointer bg-green-600 hover:bg-green-700'>
+                  Download PDF
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

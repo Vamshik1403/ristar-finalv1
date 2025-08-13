@@ -437,8 +437,11 @@ model Shipment {
   sob                           DateTime?
   etaTopod                      DateTime
   estimateDate                  DateTime
-  createdAt                     DateTime              @default(now())
-  updatedAt                     DateTime              @updatedAt
+  createdAt                     DateTime            @default(now())
+  updatedAt                     DateTime            @updatedAt
+  hasCroGenerated               Boolean             @default(false)
+  firstCroGenerationDate        DateTime?
+  billofLadings                 BillofLading[]
   movementHistory               MovementHistory[]
   carrierAddressBook            AddressBook?        @relation("ShipmentCarrier", fields: [carrierAddressBookId], references: [id])
   consigneeAddressBook          AddressBook?        @relation("ShipmentConsignee", fields: [consigneeAddressBookId], references: [id])
@@ -489,8 +492,8 @@ model EmptyRepoJob {
   sob                           DateTime?
   etaTopod                      DateTime
   estimateDate                  DateTime
-  createdAt                     DateTime                  @default(now())
-  updatedAt                     DateTime                  @updatedAt
+  createdAt                     DateTime                @default(now())
+  updatedAt                     DateTime                @updatedAt
   carrierAddressBook            AddressBook?            @relation("ShipmentCarrier", fields: [carrierAddressBookId], references: [id])
   emptyReturnDepotAddressBook   AddressBook?            @relation("ShipmentEmptyReturn", fields: [emptyReturnDepotAddressBookId], references: [id])
   expHandlingAgentAddressBook   AddressBook?            @relation("ShipmentExportHandling", fields: [expHandlingAgentAddressBookId], references: [id])
@@ -524,35 +527,73 @@ model MovementHistory {
   status         String
   date           DateTime
   remarks        String?
-  jobNumber      String?  
-  vesselName    String?
+  jobNumber      String?
+  vesselName     String?
   addressBook    AddressBook?  @relation(fields: [addressBookId], references: [id])
   emptyRepoJob   EmptyRepoJob? @relation(fields: [emptyRepoJobId], references: [id])
   inventory      Inventory     @relation(fields: [inventoryId], references: [id])
   port           Ports         @relation(fields: [portId], references: [id])
-  shipment       Shipment?     @relation(fields: [shipmentId], references: [id], onDelete: SetNull)
+  shipment       Shipment?     @relation(fields: [shipmentId], references: [id])
 }
 
 model User {
-  id        Int          @id @default(autoincrement())
-  username  String       @unique
-  password  String
-  firstName String
-  lastName  String
-  email     String       @unique
-  contact   String
-  userType  String       @default("superadmin") // superadmin, manager, executive
+  id          Int          @id @default(autoincrement())
+  username    String       @unique
+  password    String
+  firstName   String
+  lastName    String
+  email       String       @unique
+  contact     String
+  userType    String       @default("superadmin")
   permissions Permission[]
 }
 
 model Permission {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   userId    Int
-  module    String   // e.g., "quotation", "shipment"
-  canRead   Boolean  @default(false)
-  canEdit   Boolean  @default(false)
-  canDelete Boolean  @default(false)
-  canCreate Boolean  @default(false)
+  module    String
+  canRead   Boolean @default(false)
+  canEdit   Boolean @default(false)
+  canDelete Boolean @default(false)
+  canCreate Boolean @default(false)
+  user      User    @relation(fields: [userId], references: [id])
+}
 
-  user      User     @relation(fields: [userId], references: [id])
+model BillofLading {
+  id                     Int       @id @default(autoincrement())
+  consigneeName          String
+  consigneeAddress       String?
+  consigneeContactNo     String?
+  consigneeEmail         String?
+  notifyPartyName        String
+  notifyPartyAddress     String?
+  notifyPartyContactNo   String?
+  notifyPartyEmail       String?
+  containerNos           String?
+  sealNo                 String
+  grossWt                String
+  netWt                  String
+  billofLadingDetails    String?
+  freightPrepaid         String?
+  freightPostpaid        String?
+  deliveryAgentName      String
+  deliveryAgentAddress   String?
+  Vat                    String?
+  deliveryAgentContactNo String?
+  deliveryAgentEmail     String?
+  freightAmount          String?
+  shippersAddress        String?
+  shippersContactNo      String?
+  shippersEmail          String?
+  shippersName           String
+  portOfLoading          String?
+  portOfDischarge        String?
+  vesselNo               String?
+  createdAt              DateTime  @default(now())
+  shipmentId             Int?
+  updatedAt              DateTime  @default(now()) @updatedAt
+  firstGenerationDate    DateTime?
+  hasDraftBlGenerated    Boolean   @default(false)
+  hasOriginalBLGenerated Boolean   @default(false)
+  shipment               Shipment? @relation(fields: [shipmentId], references: [id])
 }

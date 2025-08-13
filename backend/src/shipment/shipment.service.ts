@@ -386,4 +386,43 @@ async remove(id: number) {
       },
     });
   }
+
+  async markCroGenerated(id: number) {
+    try {
+      // Get the existing shipment
+      const existingShipment = await this.prisma.shipment.findUnique({
+        where: { id },
+      });
+
+      if (!existingShipment) {
+        throw new Error('Shipment not found');
+      }
+
+      const currentDate = new Date();
+      const updateData: any = {};
+
+      // Set hasCroGenerated to true if not already set
+      if (!existingShipment.hasCroGenerated) {
+        updateData.hasCroGenerated = true;
+      }
+
+      // Set firstCroGenerationDate if not already set
+      if (!existingShipment.firstCroGenerationDate) {
+        updateData.firstCroGenerationDate = currentDate;
+      }
+
+      // Only update if there's something to update
+      if (Object.keys(updateData).length > 0) {
+        return await this.prisma.shipment.update({
+          where: { id },
+          data: updateData,
+        });
+      }
+
+      return existingShipment;
+    } catch (error) {
+      console.error('❌ Failed to mark CRO as generated:', error);
+      throw new Error('CRO generation tracking failed. See logs for details.');
+    }
+  }
 }

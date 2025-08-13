@@ -3,9 +3,10 @@ import {
   Get,
   Post,
   Body,
-  Param,
   Patch,
+  Param,
   Delete,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { ShipmentService } from './shipment.service';
 import { CreateShipmentDto } from './dto/create-shipment.dto';
@@ -46,8 +47,13 @@ export class ShipmentController {
     return this.shipmentService.remove(+id);
   }
 
-  @Get('/quotation/:refNumber')
+  @Get('quotation/:refNumber')
   getQuotation(@Param('refNumber') refNumber: string) {
     return this.shipmentService.getQuotationDataByRef(refNumber);
+  }
+
+  @Post('mark-cro-generated/:id')
+  markCroGenerated(@Param('id', ParseIntPipe) id: number) {
+    return this.shipmentService.markCroGenerated(id);
   }
 }

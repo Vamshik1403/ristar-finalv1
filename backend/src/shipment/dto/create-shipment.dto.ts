@@ -1,5 +1,5 @@
 import { Type } from 'class-transformer';
-import { IsInt, IsString, IsDateString, IsArray, ValidateNested, IsOptional } from 'class-validator';
+import { IsInt, IsString, IsDateString, IsArray, ValidateNested, IsOptional, IsBoolean, IsDate } from 'class-validator';
 
 
 
@@ -116,6 +116,14 @@ export class CreateShipmentDto {
   @IsOptional()
   @IsString()
   tankPreparation?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  hasCroGenerated?: boolean;
+
+  @IsOptional()
+  @IsDate()
+  firstCroGenerationDate?: Date;
 
     @IsArray()
   @ValidateNested({ each: true })
