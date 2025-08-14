@@ -167,10 +167,10 @@
   max-width: 1400px !important;
 }
 
-/* Specific override for BL form modal */
+/* Specific override for BL form modal - allow a narrower, fixed width */
 .bl-modal-content {
-  width: 95vw !important;
-  max-width: 1400px !important;
-  min-width: 95vw !important;
+  width: 1300px !important;
+  max-width: 1300px !important;
+  min-width: 0 !important;
 }
 }

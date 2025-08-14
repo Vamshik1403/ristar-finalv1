@@ -31,6 +31,13 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { generateCroPdf } from './generateCroPdf';
 import { generateBlPdf, type BLType, type BLFormData } from './generateBlPdf';
 
@@ -56,10 +63,19 @@ interface ExtendedBLFormData extends BLFormData {
   grossWt: string;
   netWt: string;
   billofLadingDetails: string;
-  freightPrepaid: string;
-  freightPostpaid: string;
+  freightPayableAt: string;
   freightAmount: string;
   Vat: string;
+  securityDeposit: string;
+  loloCharges: string;
+  Orc: string;
+  inspectionFees: string;
+  reeferPlugInCharges: string;
+  specialGearCharges: string;
+  riyadhDestinedContainerShifting: string;
+  xRayChargesForRiyadhShifting: string;
+  lineDetection: string;
+  damageRepairCleaningCharges: string;
   shipmentId: number;
   blType: BLType;
 }
@@ -87,10 +103,19 @@ interface CompleteBLFormData {
   grossWt: string;
   netWt: string;
   billofLadingDetails: string;
-  freightPrepaid: string;
-  freightPostpaid: string;
+  freightPayableAt: string;
   freightAmount: string;
   Vat: string;
+  securityDeposit: string;
+  loloCharges: string;
+  Orc: string;
+  inspectionFees: string;
+  reeferPlugInCharges: string;
+  specialGearCharges: string;
+  riyadhDestinedContainerShifting: string;
+  xRayChargesForRiyadhShifting: string;
+  lineDetection: string;
+  damageRepairCleaningCharges: string;
 }
 
 interface Shipment {
@@ -166,14 +191,24 @@ const AllShipmentsPage = () => {
     grossWt: '',
     netWt: '',
     billofLadingDetails: '',
-    freightPrepaid: '',
-    freightPostpaid: '',
+    freightPayableAt: '',
     deliveryAgentName: '',
     deliveryAgentAddress: '',
     Vat: '',
     deliveryAgentContactNo: '',
     deliveryAgentEmail: '',
     freightAmount: '',
+    // Default values for charge fields as shown in the image
+    securityDeposit: 'SAR 3000 per dry container & SAR 7,000 per Reefer/Flat rack/special equipment',
+    loloCharges: 'SAR 100/150 + VAT',
+    Orc: 'SAR 300/450/560 per 20/40/45 for NON-DG and SAR375/562.50/700 per 20′/40′/45′ for DG respectively.',
+    inspectionFees: 'SAR 140 per container',
+    reeferPlugInCharges: 'SAR 134/day per reefer',
+    specialGearCharges: 'SAR 300 per unit for OOG',
+    riyadhDestinedContainerShifting: 'SAR 60 per unit',
+    xRayChargesForRiyadhShifting: 'SAR 460/560 (20′/40′)',
+    lineDetection: 'As per MAWANI regulation article 28/02',
+    damageRepairCleaningCharges: 'as per actual, if any.',
     // Fields fetched from shipment
     portOfLoading: '',
     portOfDischarge: '',
@@ -182,8 +217,13 @@ const AllShipmentsPage = () => {
     containers: [] as Array<{containerNumber: string, sealNumber: string, grossWt: string, netWt: string}>,
     // Additional fields for form management
     shipmentId: 0,
-    blType: 'original' as BLType
+    blType: 'original' as BLType,
+    // Add date field for BL generation
+    date: new Date().toISOString().split('T')[0]
   });
+
+  // Add state for allMovements
+  const [allMovements, setAllMovements] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     id: undefined,
@@ -457,6 +497,13 @@ const AllShipmentsPage = () => {
     fetchShipments();
   }, []);
 
+  useEffect(() => {
+    // Fetch allMovements data from backend (update the URL as needed)
+    axios.get('http://localhost:8000/shipment')
+      .then(res => setAllMovements(res.data))
+      .catch(err => console.error('Failed to fetch movements', err));
+  }, []);
+
   const handleDelete = async (id: number) => {
     const confirmDelete = window.confirm('Are you sure you want to delete this shipment?');
     if (!confirmDelete) return;
@@ -589,16 +636,6 @@ const AllShipmentsPage = () => {
     setViewShipment(shipment);
     setShowViewModal(true);
   };
-
-  // Add state for allMovements
-  const [allMovements, setAllMovements] = useState<any[]>([]);
-
-  useEffect(() => {
-    // Fetch allMovements data from backend (update the URL as needed)
-    axios.get('http://localhost:8000/shipment')
-      .then(res => setAllMovements(res.data))
-      .catch(err => console.error('Failed to fetch movements', err));
-  }, []);
 
   const handleDownloadPDF = async (shipmentId: number, containers: any[]) => {
     const getSize = (inventoryId: number) => {
@@ -752,22 +789,37 @@ const AllShipmentsPage = () => {
           }
         }));
 
-        // Parse existing BL data back into container-specific fields
-        const savedSealNumbers = existingBl.sealNo ? existingBl.sealNo.split(', ').filter((s: string) => s.trim()) : [];
-        const savedGrossWeights = existingBl.grossWt ? existingBl.grossWt.split(', ').filter((w: string) => w.trim()) : [];
-        const savedNetWeights = existingBl.netWt ? existingBl.netWt.split(', ').filter((w: string) => w.trim()) : [];
+        // Parse existing BL data back into container-specific fields using the SNAPSHOT saved at first generation
+        const savedContainerNumbers = existingBl.containerNos
+          ? String(existingBl.containerNos)
+              .split(',')
+              .map((s: string) => s.trim())
+              .filter((s: string) => s.length > 0)
+          : [];
+        const savedSealNumbers = existingBl.sealNo ? String(existingBl.sealNo).split(',').map((s: string) => s.trim()) : [];
+        const savedGrossWeights = existingBl.grossWt ? String(existingBl.grossWt).split(',').map((s: string) => s.trim()) : [];
+        const savedNetWeights = existingBl.netWt ? String(existingBl.netWt).split(',').map((s: string) => s.trim()) : [];
 
-        // IMPORTANT: Use LATEST shipment container data and populate with saved BL data
-        const currentContainers = latestShipment.containers?.map((c: any, index: number) => ({
-          containerNumber: c.containerNumber || '',
-          sealNumber: savedSealNumbers[index] || c.sealNumber || '',
+        // IMPORTANT: Build containers strictly from the saved BL snapshot (do not reflect later shipment edits)
+        const currentContainers = savedContainerNumbers.map((num: string, index: number) => ({
+          containerNumber: num || '',
+          sealNumber: savedSealNumbers[index] || '',
           grossWt: savedGrossWeights[index] || '',
           netWt: savedNetWeights[index] || ''
-        })) || [];
+        }));
+
+        // Get the consistent date from generation status
+        const generationStatus = blGenerationStatus[shipment.id];
+        const consistentDate = generationStatus?.firstGenerationDate 
+          ? new Date(generationStatus.firstGenerationDate).toISOString().split('T')[0]
+          : existingBl.firstGenerationDate
+          ? new Date(existingBl.firstGenerationDate).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0];
 
         setBlFormData({
           shipmentId: shipment.id,
           blType: blType,
+          date: consistentDate, // Set consistent date
           // Fill with existing BL data for other fields
           shippersName: existingBl.shippersName || '',
           shippersAddress: existingBl.shippersAddress || '',
@@ -781,25 +833,35 @@ const AllShipmentsPage = () => {
           notifyPartyAddress: existingBl.notifyPartyAddress || '',
           notifyPartyContactNo: existingBl.notifyPartyContactNo || '',
           notifyPartyEmail: existingBl.notifyPartyEmail || '',
-          // Use CURRENT container data from latest shipment, not old BL data
+          // Always use the SNAPSHOT container list from the first generation
           containerNos: currentContainers.map((c: any) => c.containerNumber).join(', '),
           sealNo: existingBl.sealNo || '',
           grossWt: existingBl.grossWt || '',
           netWt: existingBl.netWt || '',
           billofLadingDetails: existingBl.billofLadingDetails || '',
-          freightPrepaid: existingBl.freightPrepaid || '',
-          freightPostpaid: existingBl.freightPostpaid || '',
+          freightPayableAt: existingBl.freightPayableAt || '',
           deliveryAgentName: existingBl.deliveryAgentName || '',
           deliveryAgentAddress: existingBl.deliveryAgentAddress || '',
           Vat: existingBl.Vat || '',
           deliveryAgentContactNo: existingBl.deliveryAgentContactNo || '',
           deliveryAgentEmail: existingBl.deliveryAgentEmail || '',
           freightAmount: existingBl.freightAmount || '',
-          // Fields fetched from LATEST shipment data
+          // Charge fields with existing values or defaults
+          securityDeposit: existingBl.securityDeposit || 'SAR 3000 per dry container & SAR 7,000 per Reefer/Flat rack/special equipment',
+          loloCharges: existingBl.loloCharges || 'SAR 100/150 + VAT',
+          Orc: existingBl.Orc || 'SAR 300/450/560 per 20/40/45 for NON-DG and SAR375/562.50/700 per 20′/40′/45′ for DG respectively.',
+          inspectionFees: existingBl.inspectionFees || 'SAR 140 per container',
+          reeferPlugInCharges: existingBl.reeferPlugInCharges || 'SAR 134/day per reefer',
+          specialGearCharges: existingBl.specialGearCharges || 'SAR 300 per unit for OOG',
+          riyadhDestinedContainerShifting: existingBl.riyadhDestinedContainerShifting || 'SAR 60 per unit',
+          xRayChargesForRiyadhShifting: existingBl.xRayChargesForRiyadhShifting || 'SAR 460/560 (20′/40′)',
+          lineDetection: existingBl.lineDetection || 'As per MAWANI regulation article 28/02',
+          damageRepairCleaningCharges: existingBl.damageRepairCleaningCharges || 'as per actual, if any.',
+          // Prefer saved BL snapshot values; fall back to latest shipment only if missing
           portOfLoading: existingBl.portOfLoading || latestShipment.polPort?.portName || '',
           portOfDischarge: existingBl.portOfDischarge || latestShipment.podPort?.portName || '',
           vesselNo: existingBl.vesselNo || latestShipment.vesselName || '',
-          // Container-specific fields - use CURRENT container data
+          // Container-specific fields - use SNAPSHOT container data
           containers: currentContainers
         });
         // Set the flag to true so download button is visible for existing BL
@@ -819,6 +881,7 @@ const AllShipmentsPage = () => {
         setBlFormData({
           shipmentId: shipment.id,
           blType: blType,
+          date: new Date().toISOString().split('T')[0], // Set current date for new BL
           // Empty form fields based on BillofLading schema
           shippersName: '',
           shippersAddress: '',
@@ -837,14 +900,24 @@ const AllShipmentsPage = () => {
           grossWt: '',
           netWt: '',
           billofLadingDetails: '',
-          freightPrepaid: '',
-          freightPostpaid: '',
+          freightPayableAt: '',
           deliveryAgentName: '',
           deliveryAgentAddress: '',
           Vat: '',
           deliveryAgentContactNo: '',
           deliveryAgentEmail: '',
           freightAmount: '',
+          // Default values for charge fields
+          securityDeposit: 'SAR 3000 per dry container & SAR 7,000 per Reefer/Flat rack/special equipment',
+          loloCharges: 'SAR 100/150 + VAT',
+          Orc: 'SAR 300/450/560 per 20/40/45 for NON-DG and SAR375/562.50/700 per 20′/40′/45′ for DG respectively.',
+          inspectionFees: 'SAR 140 per container',
+          reeferPlugInCharges: 'SAR 134/day per reefer',
+          specialGearCharges: 'SAR 300 per unit for OOG',
+          riyadhDestinedContainerShifting: 'SAR 60 per unit',
+          xRayChargesForRiyadhShifting: 'SAR 460/560 (20′/40′)',
+          lineDetection: 'As per MAWANI regulation article 28/02',
+          damageRepairCleaningCharges: 'as per actual, if any.',
           // Fields fetched from LATEST shipment data
           portOfLoading: latestShipment.polPort?.portName || '',
           portOfDischarge: latestShipment.podPort?.portName || '',
@@ -872,6 +945,7 @@ const AllShipmentsPage = () => {
         setBlFormData({
           shipmentId: shipment.id,
           blType: blType,
+          date: new Date().toISOString().split('T')[0], // Set current date for new BL
           // Empty form fields based on BillofLading schema
           shippersName: '',
           shippersAddress: '',
@@ -890,14 +964,24 @@ const AllShipmentsPage = () => {
           grossWt: '',
           netWt: '',
           billofLadingDetails: '',
-          freightPrepaid: '',
-          freightPostpaid: '',
+          freightPayableAt: '',
           deliveryAgentName: '',
           deliveryAgentAddress: '',
           Vat: '',
           deliveryAgentContactNo: '',
           deliveryAgentEmail: '',
           freightAmount: '',
+          // Default values for charge fields
+          securityDeposit: 'SAR 3000 per dry container & SAR 7,000 per Reefer/Flat rack/special equipment',
+          loloCharges: 'SAR 100/150 + VAT',
+          Orc: 'SAR 300/450/560 per 20/40/45 for NON-DG and SAR375/562.50/700 per 20′/40′/45′ for DG respectively.',
+          inspectionFees: 'SAR 140 per container',
+          reeferPlugInCharges: 'SAR 134/day per reefer',
+          specialGearCharges: 'SAR 300 per unit for OOG',
+          riyadhDestinedContainerShifting: 'SAR 60 per unit',
+          xRayChargesForRiyadhShifting: 'SAR 460/560 (20′/40′)',
+          lineDetection: 'As per MAWANI regulation article 28/02',
+          damageRepairCleaningCharges: 'as per actual, if any.',
           // Fields fetched from LATEST shipment data
           portOfLoading: latestShipment.polPort?.portName || '',
           portOfDischarge: latestShipment.podPort?.portName || '',
@@ -916,6 +1000,7 @@ const AllShipmentsPage = () => {
         setBlFormData({
           shipmentId: shipment.id,
           blType: blType,
+          date: new Date().toISOString().split('T')[0], // Set current date for new BL
           // Empty form fields based on BillofLading schema
           shippersName: '',
           shippersAddress: '',
@@ -934,14 +1019,24 @@ const AllShipmentsPage = () => {
           grossWt: '',
           netWt: '',
           billofLadingDetails: '',
-          freightPrepaid: '',
-          freightPostpaid: '',
+          freightPayableAt: '',
           deliveryAgentName: '',
           deliveryAgentAddress: '',
           Vat: '',
           deliveryAgentContactNo: '',
           deliveryAgentEmail: '',
           freightAmount: '',
+          // New charge fields with default values
+          securityDeposit: 'SAR 3000 per dry container & SAR 7,000 per Reefer/Flat rack/special equipment',
+          loloCharges: 'SAR 100/150 + VAT',
+          Orc: 'SAR 300/450/560 per 20/40/45 for NON-DG and SAR375/562.50/700 per 20′/40′/45′ for DG respectively.',
+          inspectionFees: 'SAR 140 per container',
+          reeferPlugInCharges: 'SAR 134/day per reefer',
+          specialGearCharges: 'SAR 300 per unit for OOG',
+          riyadhDestinedContainerShifting: 'SAR 60 per unit',
+          xRayChargesForRiyadhShifting: 'SAR 460/560 (20′/40′)',
+          lineDetection: 'As per MAWANI regulation article 28/02',
+          damageRepairCleaningCharges: 'as per actual, if any.',
           // Fields fetched from original shipment data
           portOfLoading: shipment.polPort?.portName || '',
           portOfDischarge: shipment.podPort?.portName || '',
@@ -992,8 +1087,7 @@ const AllShipmentsPage = () => {
         grossWt: blFormData.grossWt,
         netWt: blFormData.netWt,
         billofLadingDetails: blFormData.billofLadingDetails,
-        freightPrepaid: blFormData.freightPrepaid,
-        freightPostpaid: blFormData.freightPostpaid,
+        freightPayableAt: blFormData.freightPayableAt,
         deliveryAgentName: blFormData.deliveryAgentName,
         deliveryAgentAddress: blFormData.deliveryAgentAddress,
         Vat: blFormData.Vat,
@@ -1002,7 +1096,18 @@ const AllShipmentsPage = () => {
         freightAmount: blFormData.freightAmount,
         portOfLoading: blFormData.portOfLoading,
         portOfDischarge: blFormData.portOfDischarge,
-        vesselNo: blFormData.vesselNo
+        vesselNo: blFormData.vesselNo,
+        // New charge fields
+        securityDeposit: blFormData.securityDeposit,
+        loloCharges: blFormData.loloCharges,
+        Orc: blFormData.Orc,
+        inspectionFees: blFormData.inspectionFees,
+        reeferPlugInCharges: blFormData.reeferPlugInCharges,
+        specialGearCharges: blFormData.specialGearCharges,
+        riyadhDestinedContainerShifting: blFormData.riyadhDestinedContainerShifting,
+        xRayChargesForRiyadhShifting: blFormData.xRayChargesForRiyadhShifting,
+        lineDetection: blFormData.lineDetection,
+        damageRepairCleaningCharges: blFormData.damageRepairCleaningCharges,
       };
 
       // Debug: Log the payload being sent to backend
@@ -1153,17 +1258,19 @@ const AllShipmentsPage = () => {
         ? new Date(generationStatus.firstGenerationDate).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
-      // Create BL data that combines existing BL info with current container data
+      // Build BL data using the SNAPSHOT saved at first generation (do not reflect later shipment edits)
+      const savedContainerNumbers2 = existingBl.containerNos
+        ? String(existingBl.containerNos).split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+        : [];
       const blDataWithCurrentContainers = {
         ...existingBl,
-        // Update container information with latest shipment data
-        containerNos: latestShipment.containers?.map((c: any) => c.containerNumber).join(', ') || existingBl.containerNos,
-        containers: latestShipment.containers?.map((c: any) => ({
-          containerNumber: c.containerNumber || '',
-          sealNumber: c.sealNumber || '',
-          grossWt: '', // Keep original weights or reset as needed
+        containerNos: savedContainerNumbers2.join(', '),
+        containers: savedContainerNumbers2.map((num: string) => ({
+          containerNumber: num,
+          sealNumber: '',
+          grossWt: '',
           netWt: ''
-        })) || []
+        }))
       };
 
       const pdfData: BLFormData = {
@@ -1234,17 +1341,19 @@ const AllShipmentsPage = () => {
         ? new Date(generationStatus.firstGenerationDate).toISOString().split('T')[0]
         : new Date().toISOString().split('T')[0];
 
-      // Create BL data that combines existing BL info with current container data
+      // Build BL data using the SNAPSHOT saved at first generation (do not reflect later shipment edits)
+      const savedContainerNumbers3 = existingBl.containerNos
+        ? String(existingBl.containerNos).split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
+        : [];
       const blDataWithCurrentContainers = {
         ...existingBl,
-        // Update container information with latest shipment data
-        containerNos: latestShipment.containers?.map((c: any) => c.containerNumber).join(', ') || existingBl.containerNos,
-        containers: latestShipment.containers?.map((c: any) => ({
-          containerNumber: c.containerNumber || '',
-          sealNumber: c.sealNumber || '',
-          grossWt: '', // Keep original weights or reset as needed
+        containerNos: savedContainerNumbers3.join(', '),
+        containers: savedContainerNumbers3.map((num: string) => ({
+          containerNumber: num,
+          sealNumber: '',
+          grossWt: '',
           netWt: ''
-        })) || []
+        }))
       };
 
       const pdfData: BLFormData = {
@@ -1818,13 +1927,13 @@ const AllShipmentsPage = () => {
       {/* BL Form Modal */}
       <Dialog open={showBlModal} onOpenChange={setShowBlModal}>
         <DialogContent 
-          className="max-h-[90vh] overflow-y-auto !w-[95vw] !max-w-[1400px] bl-modal-content" 
+          className="max-h-[90vh] overflow-y-auto !w-[600px] !max-w-[600px] bl-modal-content" 
           style={{ 
-            width: '95vw !important', 
-            maxWidth: '1400px !important',
-            minWidth: '95vw',
-            '--radix-dialog-content-width': '95vw',
-            '--radix-dialog-content-max-width': '1400px'
+            width: '600px !important', 
+            maxWidth: '600px !important',
+            minWidth: '600px',
+            '--radix-dialog-content-width': '600px',
+            '--radix-dialog-content-max-width': '600px'
           } as React.CSSProperties}
         >
           <DialogHeader>
@@ -1832,6 +1941,37 @@ const AllShipmentsPage = () => {
           </DialogHeader>
           
           <div className="grid gap-4 py-4">
+            {/* Date Field - Added at the top */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="blDate">Generated Date (Fixed)</Label>
+                <Input
+                  id="blDate"
+                  type="date"
+                  value={blFormData.date}
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="blTypeDisplay">BL Type</Label>
+                <Input
+                  id="blTypeDisplay"
+                  value={currentBlType === 'original' ? 'Original' : currentBlType === 'draft' ? 'Draft' : 'Seaway'}
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="shipmentIdDisplay">Shipment ID</Label>
+                <Input
+                  id="shipmentIdDisplay"
+                  value={blFormData.shipmentId.toString()}
+                  disabled
+                  className="bg-gray-100 cursor-not-allowed"
+                />
+              </div>
+            </div>
             {/* Shipper Information */}
             <hr className="dark:border-black"/>
             <div className="mt-4">
@@ -2175,8 +2315,8 @@ const AllShipmentsPage = () => {
                   </div>
                 ))}
               </div>
-              <div className="mt-3">
-                <div className="space-y-2">
+              <div className="mt-4">
+                <div className="space-y-2 mt-4">
                   <Label htmlFor="billofLadingDetails">Bill of Lading Details</Label>
                   <Textarea
                     id="billofLadingDetails"
@@ -2194,26 +2334,21 @@ const AllShipmentsPage = () => {
             <hr className="border-black" />
             <div className="mt-4">
               <h3 className="text-lg font-semibold mb-3">Freight Information</h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="freightPrepaid">Freight Prepaid</Label>
-                  <Input
-                    id="freightPrepaid"
-                    value={blFormData.freightPrepaid}
-                    onChange={(e) => setBlFormData({...blFormData, freightPrepaid: e.target.value})}
-                    placeholder="Enter freight prepaid amount"
-                    className="bg-white dark:bg-black"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="freightPostpaid">Freight Postpaid</Label>
-                  <Input
-                    id="freightPostpaid"
-                    value={blFormData.freightPostpaid}
-                    onChange={(e) => setBlFormData({...blFormData, freightPostpaid: e.target.value})}
-                    placeholder="Enter freight postpaid amount"
-                    className="bg-white dark:bg-black"
-                  />
+                  <Label htmlFor="freightPayableAt">Freight Payable At</Label>
+                  <Select
+                    value={blFormData.freightPayableAt}
+                    onValueChange={(value) => setBlFormData({...blFormData, freightPayableAt: value})}
+                  >
+                    <SelectTrigger className="w-full bg-white dark:bg-black">
+                      <SelectValue placeholder="Select freight payable option" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="prepaid">Freight Prepaid</SelectItem>
+                      <SelectItem value="postpaid">Freight Postpaid</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="freightAmount">Freight Amount</Label>
@@ -2224,6 +2359,114 @@ const AllShipmentsPage = () => {
                     placeholder="Enter freight amount"
                     className="bg-white dark:bg-black"
                   />
+                </div>
+              </div>
+
+              {/* Charges Section */}
+               <hr className="dark:border-black mt-4"/>
+              <div className="mt-4">
+                <h3 className="text-lg font-semibold">Charges and Fees</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="securityDeposit">Security Deposit</Label>
+                    <Input
+                      id="securityDeposit"
+                      value={blFormData.securityDeposit}
+                      onChange={(e) => setBlFormData({...blFormData, securityDeposit: e.target.value})}
+                      placeholder="Security deposit details"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <Label htmlFor="loloCharges">LOLO Charges</Label>
+                    <Input
+                      id="loloCharges"
+                      value={blFormData.loloCharges}
+                      onChange={(e) => setBlFormData({...blFormData, loloCharges: e.target.value})}
+                      placeholder="LOLO charges"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="Orc">ORC</Label>
+                    <Input
+                      id="Orc"
+                      value={blFormData.Orc}
+                      onChange={(e) => setBlFormData({...blFormData, Orc: e.target.value})}
+                      placeholder="ORC charges"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="inspectionFees">Inspection Fees</Label>
+                    <Input
+                      id="inspectionFees"
+                      value={blFormData.inspectionFees}
+                      onChange={(e) => setBlFormData({...blFormData, inspectionFees: e.target.value})}
+                      placeholder="Inspection fees"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reeferPlugInCharges">Reefer Plug In Charges</Label>
+                    <Input
+                      id="reeferPlugInCharges"
+                      value={blFormData.reeferPlugInCharges}
+                      onChange={(e) => setBlFormData({...blFormData, reeferPlugInCharges: e.target.value})}
+                      placeholder="Reefer plug in charges"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="specialGearCharges">Special Gear Charges</Label>
+                    <Input
+                      id="specialGearCharges"
+                      value={blFormData.specialGearCharges}
+                      onChange={(e) => setBlFormData({...blFormData, specialGearCharges: e.target.value})}
+                      placeholder="Special gear charges"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="riyadhDestinedContainerShifting">Riyadh Destined Container Shifting</Label>
+                    <Input
+                      id="riyadhDestinedContainerShifting"
+                      value={blFormData.riyadhDestinedContainerShifting}
+                      onChange={(e) => setBlFormData({...blFormData, riyadhDestinedContainerShifting: e.target.value})}
+                      placeholder="Riyadh destined container shifting"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="xRayChargesForRiyadhShifting">X-Ray Charges For Riyadh Shifting</Label>
+                    <Input
+                      id="xRayChargesForRiyadhShifting"
+                      value={blFormData.xRayChargesForRiyadhShifting}
+                      onChange={(e) => setBlFormData({...blFormData, xRayChargesForRiyadhShifting: e.target.value})}
+                      placeholder="X-Ray charges for Riyadh shifting"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lineDetection">Line Detection</Label>
+                    <Input
+                      id="lineDetection"
+                      value={blFormData.lineDetection}
+                      onChange={(e) => setBlFormData({...blFormData, lineDetection: e.target.value})}
+                      placeholder="Line detection charges"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="damageRepairCleaningCharges">Damage Repair Cleaning Charges</Label>
+                    <Input
+                      id="damageRepairCleaningCharges"
+                      value={blFormData.damageRepairCleaningCharges}
+                      onChange={(e) => setBlFormData({...blFormData, damageRepairCleaningCharges: e.target.value})}
+                      placeholder="Damage repair cleaning charges"
+                      className="bg-white dark:bg-black"
+                    />
+                  </div>
                 </div>
               </div>
             </div>

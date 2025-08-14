@@ -71,11 +71,7 @@ export class CreateBillOfLadingDto {
 
   @IsOptional()
   @IsString()
-  freightPrepaid?: string;
-
-  @IsOptional()
-  @IsString()
-  freightPostpaid?: string;
+  freightPayableAt?: string;
 
   @IsNotEmpty()
   @IsString()
@@ -100,6 +96,58 @@ export class CreateBillOfLadingDto {
   @IsOptional()
   @IsString()
   freightAmount?: string;
+
+  @IsOptional()
+  @IsString()
+  portOfLoading?: string;
+
+  @IsOptional()
+  @IsString()
+  portOfDischarge?: string;
+
+  @IsOptional()
+  @IsString()
+  vesselNo?: string;
+
+  @IsOptional()
+  @IsString()
+  securityDeposit?: string;
+
+  @IsOptional()
+  @IsString()
+  loloCharges?: string;
+
+  @IsOptional()
+  @IsString()
+  Orc?: string;
+
+  @IsOptional()
+  @IsString()
+  inspectionFees?: string;
+
+  @IsOptional()
+  @IsString()
+  reeferPlugInCharges?: string;
+
+  @IsOptional()
+  @IsString()
+  specialGearCharges?: string;
+
+  @IsOptional()
+  @IsString()
+  riyadhDestinedContainerShifting?: string;
+
+  @IsOptional()
+  @IsString()
+  xRayChargesForRiyadhShifting?: string;
+
+  @IsOptional()
+  @IsString()
+  lineDetection?: string;
+
+  @IsOptional()
+  @IsString()
+  damageRepairCleaningCharges?: string;
 
   @IsOptional()
   @IsBoolean()

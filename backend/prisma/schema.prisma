@@ -574,8 +574,7 @@ model BillofLading {
   grossWt                String
   netWt                  String
   billofLadingDetails    String?
-  freightPrepaid         String?
-  freightPostpaid        String?
+  freightPayableAt       String?
   deliveryAgentName      String
   deliveryAgentAddress   String?
   Vat                    String?
@@ -589,6 +588,16 @@ model BillofLading {
   portOfLoading          String?
   portOfDischarge        String?
   vesselNo               String?
+  securityDeposit        String?
+  loloCharges            String?
+  Orc                    String?
+  inspectionFees         String?
+  reeferPlugInCharges    String?
+  specialGearCharges     String?
+  riyadhDestinedContainerShifting  String?
+  xRayChargesForRiyadhShifting  String?
+  lineDetection  String?
+  damageRepairCleaningCharges  String?
   createdAt              DateTime  @default(now())
   shipmentId             Int?
   updatedAt              DateTime  @default(now()) @updatedAt
